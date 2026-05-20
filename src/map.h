@@ -4,7 +4,6 @@
 #include <stdio.h>
 
 
-#define CELL_CHAR_UNTEXTURED_WALL '#'
 #define CELL_CHAR_EMPTY ' '
 #define CELL_CHAR_PLAYER_START 'S'
 

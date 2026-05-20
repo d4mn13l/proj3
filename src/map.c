@@ -34,17 +34,17 @@ void map_load(map_t *map, FILE *f) {
 		
 		if (c == CELL_CHAR_EMPTY) {
 			map->cells[i] = CELL_EMPTY;
-		} else if (c == CELL_CHAR_UNTEXTURED_WALL) {
-			map->cells[i] = CELL_UNTEXTURED_WALL;
 		} else if (c == CELL_CHAR_PLAYER_START) {
 			map->cells[i] = CELL_EMPTY;
 			map->player_start_x = i % map->w;
 			map->player_start_y = i / map->w;
 		} else {
 			int tex = c - '0';
-			ASSERT(tex >= 0, __LINE__, __FILE__" (invalid char in map file)");
-			ASSERT(tex < 10, __LINE__, __FILE__" (invalid char in map file)");
-			map->cells[i] = tex;
+			if (0 <= tex && tex < 10) {
+				map->cells[i] = tex;
+			} else {
+				map->cells[i] = CELL_UNTEXTURED_WALL;
+			}
 		}
 
 		i++;
@@ -62,8 +62,8 @@ void map_free(map_t *map) {
 
 
 void map_print_debug_info(map_t *map) {
-	int wall_count = 0;
-	int cell_count = map->w * map->h;
+	unsigned int wall_count = 0;
+	size_t cell_count = map->w * map->h;
 	
 	for (size_t i = 0; i < cell_count; i++) {
 		if (map->cells[i] != CELL_EMPTY) {
@@ -73,7 +73,7 @@ void map_print_debug_info(map_t *map) {
 	
 	printf("Map dimensions: %d x %d\n" \
 		"Start point: (%d, %d)\n" \
-		"Total wall cells: %d\n",
+		"Total wall cells: %u\n",
 		map->w, map->h, map->player_start_x, map->player_start_y, wall_count);
 }
 
@@ -84,7 +84,7 @@ void map_render_minimap(map_t *map, char *file_name) {
 
 	ppm_write_header(f, map->w, map->h);
 
-	int cell_count = map->w * map->h;
+	size_t cell_count = map->w * map->h;
 	size_t player_start_i = map->player_start_y * map->w + map->player_start_x;
 	
 	for (size_t i = 0; i < cell_count; i++) {
