@@ -5,11 +5,20 @@
 
 
 
-#define ASSERT(a, cmp, b, line, file)                            \
-if (!(a cmp b)) {                                                \
-	printf("assertion \"%s %s %s\" failed at line %d in %s", \
-		#a, #cmp, #b, line, file);                       \
-	exit(EXIT_FAILURE);                                      \
+#define ASSERT(cond, line, file)                           \
+if (!(cond)) {                                             \
+	printf("assertion \"%s\" failed at line %d in %s", \
+		#cond, line, file);                        \
+	exit(EXIT_FAILURE);                                \
+}
+
+
+
+#define ASSERT_RET(cond, line, file)                       \
+if (!(cond)) {                                             \
+	printf("assertion \"%s\" failed at line %d in %s", \
+		#cond, line, file);                        \
+	return EXIT_FAILURE;                               \
 }
 
 

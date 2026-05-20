@@ -6,20 +6,22 @@
 
 
 int main(int argc, char *argv[]) {
-	ASSERT(argc, >=, 2, __LINE__, __FILE__);
-
-	printf("loading map from %s\n", argv[1]);
+	ASSERT(argc >= 2, __LINE__, __FILE__);
 
 	FILE *map_file = fopen(argv[1], "r");
-	ASSERT(map_file, !=, NULL, __LINE__, __FILE__);
+	ASSERT(map_file != NULL, __LINE__, __FILE__);
 
 	map_t map;
-	int map_load_ret = map_load(&map, map_file);
-	ASSERT(map_load_ret, ==, EXIT_SUCCESS, __LINE__, __FILE__);
+	map_load(&map, map_file);
 
+	fclose(map_file);
+	map_file = NULL;
+	
 	if (!strcmp(argv[2], "-I")) {
-		puts("-I");
 		map_print_debug_info(&map);
+	} else if (!strcmp(argv[2], "-M")) {
+		ASSERT(argc == 4, __LINE__, __FILE__);
+		map_render_minimap(&map, argv[3]);
 	} else {
 		printf("unknown option %s", argv[2]);
 	}

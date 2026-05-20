@@ -25,9 +25,9 @@ typedef struct {
 } map_t;
 
 
-int map_load(map_t *map, FILE *map_file);
+void map_load(map_t *map, FILE *map_file);
 void map_free(map_t *map);
 
 void map_print_debug_info(map_t *map);
-
+void map_render_minimap(map_t *map, char *file_name);
 #endif
