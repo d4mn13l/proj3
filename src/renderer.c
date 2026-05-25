@@ -28,7 +28,7 @@ vec3_t project_pixel_onto_image_plane(int w, int h, int x, int y, vec3_t c, vec3
 
 // i: vector origin
 // r: vector direction
-texture_t cast_ray(map_t *map, vec3_t i, vec3_t r, vec3_t *out_intersection) {
+ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 	ASSERT(r.z == 0, __LINE__, __FILE__);
 	// this function should only be used for rays that have z = 0
 
@@ -80,26 +80,20 @@ texture_t cast_ray(map_t *map, vec3_t i, vec3_t r, vec3_t *out_intersection) {
 	bool last_stepped_x = s.x < s.y;
 	// TODO does this initial value make sense?
 
-	texture_t res = TEX_EMPTY;
+	ray_cast_result_t res;
+	res.hit = CELL_EMPTY;
 	// this remains unchanged if the ray doesnt hit anything
 
 	while (map_is_in_bounds(map, cell_pos_x, cell_pos_y)) {
 		RENDER_DEBUG(printf("now with s=(%f %f %f), cell pos = (%d %d) and last_stepped_x = %b\n",
 			s.x, s.y, s.z, cell_pos_x, cell_pos_y, last_stepped_x));
 		cell_t hit_cell = map_get_cell(map, cell_pos_x, cell_pos_y);
-		if (hit_cell == CELL_UNTEXTURED_WALL || 0 <= hit_cell && hit_cell < 10) {
-			RENDER_DEBUG(printf("hit untextured wall at (%d %d)\n", cell_pos_x, cell_pos_y));
-			res =  last_stepped_x ? TEX_UNTEXTURED_WALL_Y : TEX_UNTEXTURED_WALL_X;
-			break;
-		}
-		if (0 <= hit_cell && hit_cell < 10) {
-			// textured wall
-			RENDER_DEBUG(printf("hit textured wall (%d) in cell (%d %d)\n", hit_cell, cell_pos_x, cell_pos_y));
-			res = hit_cell;
-			break;
-		}
-		ASSERT(hit_cell == CELL_EMPTY, __LINE__, __FILE__" (invalid cell value)");
 
+		if (hit_cell != CELL_EMPTY) {
+			res.hit = hit_cell;
+			break;
+		}
+		
 		// now step
 		if (s.x < s.y) {
 			s.x += t.x;
@@ -112,26 +106,20 @@ texture_t cast_ray(map_t *map, vec3_t i, vec3_t r, vec3_t *out_intersection) {
 		}
 	}
 
-	if (out_intersection) {
-		if (last_stepped_x) {
-			*out_intersection = vec3_add(i, vec3_mul_scalar(s.x - t.x, r));
-		} else {
-			*out_intersection = vec3_add(i, vec3_mul_scalar(s.y - t.y, r));
-		}
-		// why we need to subtract t here:
-		// in the first iteration of the while loop, cell_position is still at the
-		// cell of the player, while the ray (s*d) already points the next cell, so
-		// the ray will always be "one cell ahead" of the actual position
-		// there is probably a cleaner solution to this but this works at least
-		
-		RENDER_DEBUG(printf("wall hit at (%f %f %f)\n", out_intersection->x, out_intersection->y, out_intersection->z));
+	res.is_x_wall = !last_stepped_x;
+	// negate this because uhh idk
+	// theres probably another flip somewhere else that cancels this out
+	if (last_stepped_x) {
+		res.position = vec3_add(i, vec3_mul_scalar(s.x - t.x, r));
+	} else {
+		res.position = vec3_add(i, vec3_mul_scalar(s.y - t.y, r));
 	}
 
 	return res;
 }
 
 
-void render(FILE* out, render_buf_t *buf, map_t *map, int w, int h, double px, 
+void render(FILE *out, render_buf_t *buf, map_t *map, void *tex_atlas, int w, int h, double px, 
 		double py, double fov, double rotation) {
 	ASSERT(0 < fov && fov < 180, __LINE__, __FILE__);
 	
@@ -172,8 +160,7 @@ void render(FILE* out, render_buf_t *buf, map_t *map, int w, int h, double px,
 		vec3_t r = vec3_sub(p, i);
 		r.z = 0;
 
-		vec3_t wall_point;
-		texture_t hit_tex = cast_ray(map, p, r, &wall_point);
+		ray_cast_result_t rc_res = cast_ray(map, p, r);
 		// the project description says to cast the ray from i, but we can cast if
 		// from p instead since the ray passes through p anyways and we dont want
 		// to see things between i and p. this also makes sure that the ray always
@@ -182,10 +169,40 @@ void render(FILE* out, render_buf_t *buf, map_t *map, int w, int h, double px,
 		// NOTE if i change this to i for some reason, remember to also change it in
 		// the next line (definition of wall_distance)
 
-		double wall_distance = vec3_magnitude(vec3_sub(wall_point, vec3_sub(p, CAMERA_OFFSET)));
+		double wall_distance = vec3_magnitude(vec3_sub(rc_res.position, vec3_sub(p, CAMERA_OFFSET)));
 		RENDER_DEBUG(printf("wall distance: %f\n", wall_distance));
 
-		if (hit_tex == TEX_EMPTY) {
+		texture_t tex;
+		if (tex_atlas != NULL) {
+			switch (rc_res.hit) {
+				case CELL_EMPTY:
+					tex = TEX_EMPTY;
+					break;
+				case CELL_UNTEXTURED_WALL:
+					if (tex_atlas) tex = 2;
+					break;
+					tex = TEX_UNTEXTURED_WALL_Y - rc_res.is_x_wall;
+					// if rc_res.is_x_wall is true, then this will result in
+					// TEX_UNTEXTURED_WALL_X. a bit hacky but its 1 less if statement
+					break;
+				default:
+					// assume this is in [0,9], so a valid texture atlas index
+					// there shouldnt be any other possible value
+					tex = rc_res.hit;
+			};
+		} else {
+			switch (rc_res.hit) {
+				case CELL_EMPTY:
+					tex = TEX_EMPTY;
+					break;
+				default:
+					tex = TEX_UNTEXTURED_WALL_Y - rc_res.is_x_wall;
+					// works for the same reason as above
+			}
+		}
+
+
+		if (tex == TEX_EMPTY) {
 			// FIXME what to put in middle row if h is odd?
 			for (int y = 0; y < h/2; y++) {
 				buf->pixels[x + y * w] = TEX_CEIL;
@@ -210,7 +227,7 @@ void render(FILE* out, render_buf_t *buf, map_t *map, int w, int h, double px,
 			} else if (intersection_z > 1.0001) {
 				buf->pixels[x + y * w] = TEX_FLOOR;
 			} else {
-				buf->pixels[x + y * w] = hit_tex;
+				buf->pixels[x + y * w] = tex;
 			}
 		}
 	}

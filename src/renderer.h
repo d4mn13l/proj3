@@ -3,6 +3,7 @@
 
 #include <stdint.h>
 #include "map.h"
+#include "maths.h"
 
 
 #define CAMERA_OFFSET (vec3_t) {0,0,0.5}
@@ -25,6 +26,12 @@ typedef struct {
 } render_buf_t;
 // internal representation of the rendered view containing TEXTURE_... stuff
 
+typedef struct {
+	cell_t hit;
+	vec3_t position;
+	bool is_x_wall;
+} ray_cast_result_t;
+
 render_buf_t *render_buf_new(size_t w, size_t h);
 void render_buf_init(render_buf_t *buf, size_t w, size_t h);
 
@@ -32,6 +39,8 @@ void render_buf_init(render_buf_t *buf, size_t w, size_t h);
 // buf can be NULL, then a new one is allocated
 // but when calling this multiple times it makes sense to reuse the same one
 // to prevent unnecessary allocations
-void render(FILE* out, render_buf_t *buf, map_t *map, int w, int h, double px,
+//
+// void* is only temporary until i have implemented a texture atlas
+void render(FILE* out, render_buf_t *buf, map_t *map, void *tex_atlas, int w, int h, double px,
 		double py, double fov, double rotation);
 #endif

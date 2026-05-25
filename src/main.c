@@ -35,7 +35,7 @@ int main(int argc, char *argv[]) {
 	
 		FILE *f = fopen(argv[3], "w");
 		ASSERT(f != NULL, __LINE__, __FILE__);
-		render(f, NULL, &map, width, height, px, py, fov, rotation);
+		render(f, NULL, &map, NULL, width, height, px, py, fov, rotation);
 	} else {
 		printf("unknown option %s", argv[2]);
 	}
