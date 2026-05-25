@@ -2,6 +2,7 @@
 #define UTIL_H
 
 #include <stdlib.h>
+#include "renderer.h"
 
 
 
@@ -21,5 +22,16 @@ if (!(cond)) {                                             \
 	return EXIT_FAILURE;                               \
 }
 
+#define UNREACHABLE(line, file, msg) do {                       \
+	printf("unreachable code reached at line %d in %s: %s", \
+		line, file, msg);                               \
+	exit(1);                                                \
+} while (0);
+
+#ifdef ENABLE_RENDER_DEBUGGING
+#define RENDER_DEBUG(x) x
+#else
+#define RENDER_DEBUG(x)
+#endif
 
 #endif

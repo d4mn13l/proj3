@@ -23,6 +23,9 @@ void map_load(map_t *map, FILE *f) {
 	size_t i = 0;
 
 	while ((c = fgetc(f)) != EOF) {
+		ASSERT(i <= map->w * map->h, __LINE__,
+			__FILE__" (expected end of map file, found more map)");
+
 		if (c == '\n') {
 			ASSERT((i % map->w) == 0, __LINE__,
 				__FILE__" (line in map file too long/short)");
@@ -52,6 +55,7 @@ void map_load(map_t *map, FILE *f) {
 
 	ASSERT(i == map->w * map->h, __LINE__,
 		__FILE__" (expected more lines in map file, found EOF)")
+	// i cant be greater than w*h bc that is already checked in the loop
 }
 
 
@@ -89,14 +93,23 @@ void map_render_minimap(map_t *map, char *file_name) {
 	
 	for (size_t i = 0; i < cell_count; i++) {
 		if (i == player_start_i) {
-			ppm_write_colour(f, 0, 255, 0);
+			ppm_write_colour(f, COLOUR_GREEN);
 		} else if (map->cells[i] == CELL_EMPTY) {
-			ppm_write_colour(f, 255, 255, 255);
+			ppm_write_colour(f, COLOUR_WHITE);
 		} else {
-			ppm_write_colour(f, 0, 0, 0);
+			ppm_write_colour(f, COLOUR_BLACK);
 		}
 	}
 
 	fclose(f);
 }
 
+
+bool map_is_in_bounds(map_t *map, int x, int y) {
+	return 0 <= x && x < map->w && 0 <= y && y < map->h;
+}
+
+
+cell_t map_get_cell(map_t *map, int x, int y) {
+	return map->cells[x + y * map->w];
+}
