@@ -57,7 +57,7 @@ texture_t cast_ray(map_t *map, vec3_t i, vec3_t r, vec3_t *out_intersection) {
 	if (in_cell_pos.x < 0) in_cell_pos.x += 1;
 	if (in_cell_pos.y < 0) in_cell_pos.y += 1;
 	// so this brings the value in the desired range
-	
+
 	int cell_pos_x = i.x < 0 ? (int) i.x - 1 : (int) i.x;
 	int cell_pos_y = i.y < 0 ? (int) i.y - 1 : (int) i.y;
 
@@ -78,29 +78,6 @@ texture_t cast_ray(map_t *map, vec3_t i, vec3_t r, vec3_t *out_intersection) {
 	// now we can begin with the actual raycasting algorithm
 	bool last_stepped_x = s.x < s.y;
 	// TODO does this initial value make sense?
-
-	// first make sure the position is actually in bounds since the starting
-	// point is on the virtual camera plane which might be out of bounds
-//	printf("trying to enter bounds\n");
-	// while (!map_is_in_bounds(map, cell_pos_x, cell_pos_y)) {
-	// 	printf("step\n");
-	// 	// we use the same stepping algorithm as in the actual raycasting and we can 
-	// 	// modify s since nothing will be hit anyways since were out of bounds
-	// 	printf("cell pos %d %d, s=(%f %f %f)\n", cell_pos_x, cell_pos_y, s.x, s.y, s.z);
-	// 	if (s.x < s.y) {
-	// 		s.x += t.x;
-	// 		cell_pos_x += r_x_sign;
-	// 		last_stepped_x = true;
-	// 	} else {
-	// 		s.y += t.y;
-	// 		cell_pos_y += r_y_sign;
-	// 		last_stepped_x = false;
-	// 	}
-	// }
-	// printf("entered bounds\n");
-	// this is not needed rn as the player position is used as the ray origin
-	// instead of the position on the camera plane and the position must always
-	// be in bounds
 
 	texture_t res = TEX_EMPTY;
 	// this remains unchanged if the ray doesnt hit anything
@@ -217,11 +194,6 @@ void render(FILE* out, render_buf_t *buf, map_t *map, int w, int h, double px,
 		// in this case the horizontal ray does hit
 		// TODO binary search the top/bottom of the wall or directly compute it?
 
-		// we treat the wall as a plane with normal wall_normal = r and point wall_point
-		//
-		// double max_z = vec3_normalised(vec3_sub(vec3_add(wall_point, (vec3_t) {0, 0, 0.5}), p)).z;
-		// double min_z = vec3_normalised(vec3_sub(vec3_add(wall_point, (vec3_t) {0, 0, -0.5}), p)).z;
-		// // printf("got max_z = %f and min_z = %f\n", max_z, min_z);
 		for (int y = 0; y < h; y++) {
 			i = project_pixel_onto_image_plane(w, h, x, y, c, d);
 			r = vec3_normalised(vec3_sub(p, i));
