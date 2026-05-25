@@ -31,12 +31,7 @@ vec3_t project_pixel_onto_image_plane(int w, int h, int x, int y, vec3_t c, vec3
 texture_t cast_ray(map_t *map, vec3_t i, vec3_t r, vec3_t *out_intersection) {
 	ASSERT(r.z == 0, __LINE__, __FILE__);
 	// this function should only be used for rays that have z = 0
-	// should it??
 
-	ASSERT(r.x != 0, __LINE__, __FILE__" (did u try rendering with an odd width)");
-	ASSERT(r.y != 0, __LINE__, __FILE__" (did u try rendering with an odd height)");
-	// idk if this can happen, but it will break the calculation of t
-	
 	r = vec3_normalised(r);
 	int r_x_sign = r.x / fabs(r.x);
 	int r_y_sign = r.y / fabs(r.y);
@@ -47,6 +42,9 @@ texture_t cast_ray(map_t *map, vec3_t i, vec3_t r, vec3_t *out_intersection) {
 	// travel distance for a full unit in x/y direction
 	// called s_w and s_h in the project description
 	vec3_t t = {fabs(1/r.x), fabs(1/r.y), 0};
+	// we actually do not need to care if r.x is 0, since the 1/r.x will be inf,
+	// so s.x will also be inf, therefore never be smaller than s.y and never be
+	// the direction of the next step
 	RENDER_DEBUG(printf("t: %f %f %f\n", t.x, t.y, t.z));
 
 	vec3_t in_cell_pos = {i.x - (int) i.x, i.y - (int) i.y, 0};
@@ -64,6 +62,9 @@ texture_t cast_ray(map_t *map, vec3_t i, vec3_t r, vec3_t *out_intersection) {
 	// initialize s (current position in the raycasting algorithm)
 	vec3_t s = {0,0,0};
 
+	// depending on if the ray goes to the right or left, take the distance to
+	// the right or left side of the cell as the starting value
+	// same for y direction
 	if (r.x > 0) {
 		s.x = (1 - in_cell_pos.x) * t.x;
 	} else {
@@ -117,7 +118,12 @@ texture_t cast_ray(map_t *map, vec3_t i, vec3_t r, vec3_t *out_intersection) {
 		} else {
 			*out_intersection = vec3_add(i, vec3_mul_scalar(s.y - t.y, r));
 		}
-		// TODO explain why you have to subtract t here
+		// why we need to subtract t here:
+		// in the first iteration of the while loop, cell_position is still at the
+		// cell of the player, while the ray (s*d) already points the next cell, so
+		// the ray will always be "one cell ahead" of the actual position
+		// there is probably a cleaner solution to this but this works at least
+		
 		RENDER_DEBUG(printf("wall hit at (%f %f %f)\n", out_intersection->x, out_intersection->y, out_intersection->z));
 	}
 
@@ -127,9 +133,6 @@ texture_t cast_ray(map_t *map, vec3_t i, vec3_t r, vec3_t *out_intersection) {
 
 void render(FILE* out, render_buf_t *buf, map_t *map, int w, int h, double px, 
 		double py, double fov, double rotation) {
-	ASSERT(w % 2 == 0, __LINE__, __FILE__" (cant render odd widths)");
-	ASSERT(h % 2 == 0, __LINE__, __FILE__" (cant render odd heights)");
-	
 	ASSERT(0 < fov && fov < 180, __LINE__, __FILE__);
 	
 	bool free_render_buf = false;
@@ -171,17 +174,19 @@ void render(FILE* out, render_buf_t *buf, map_t *map, int w, int h, double px,
 
 		vec3_t wall_point;
 		texture_t hit_tex = cast_ray(map, p, r, &wall_point);
-		// DEBUG cast ray from p instead of i, since it goes through p anyways
-		// and casting from i breaks bc it doesnt get in bounds
+		// the project description says to cast the ray from i, but we can cast if
+		// from p instead since the ray passes through p anyways and we dont want
+		// to see things between i and p. this also makes sure that the ray always
+		// starts in bounds so there is no need to handle the other case
+
+		// NOTE if i change this to i for some reason, remember to also change it in
+		// the next line (definition of wall_distance)
 
 		double wall_distance = vec3_magnitude(vec3_sub(wall_point, vec3_sub(p, CAMERA_OFFSET)));
-		// DEBUG when casting from i remember to replace this               ^ p with i too
 		RENDER_DEBUG(printf("wall distance: %f\n", wall_distance));
 
 		if (hit_tex == TEX_EMPTY) {
-			// the entire column doesnt hit
-			// so fill the upper part with ceiling and the lower with floor
-			// note that h is even
+			// FIXME what to put in middle row if h is odd?
 			for (int y = 0; y < h/2; y++) {
 				buf->pixels[x + y * w] = TEX_CEIL;
 			}
