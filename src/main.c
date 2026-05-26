@@ -46,6 +46,22 @@ int main(int argc, char *argv[]) {
 		ASSERT(out != NULL, __LINE__, __FILE__);
 		ppm_image_write(out, img);
 	}
+	else if (!strcmp(argv[2], "-S")) {
+		image_t *img = ppm_image_load(fopen(argv[3], "r"));
+		size_t nx = atoi(argv[5]);
+		size_t ny = atoi(argv[6]);
+		image_t **split = ppm_image_split(img, nx, ny);
+
+		int out_file_name_length = strlen(argv[4]);
+		for (size_t i = 0; i < nx * ny; i++) {
+			// overwrite the last character before the extension
+			// with the index
+			// this is only for debugging so now one cares
+			argv[4][out_file_name_length - 5] = i + 48;
+			FILE *f = fopen(argv[4], "w");
+			ppm_image_write(f, split[i]);
+		}
+	}
 	#endif
 	
 	else {

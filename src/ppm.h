@@ -26,6 +26,17 @@ static const colour_t COLOUR_BLACK = {0, 0, 0};
 image_t *ppm_image_new(size_t w, size_t h);
 void ppm_image_init(image_t *img, size_t w, size_t h);
 
+image_t **ppm_image_split(image_t *src, size_t nx, size_t ny);
+// splits the image into nx * ny images  of equal size and returns them as an
+// array, for example:
+// nx = 4, ny = 2, then the image would be split like this
+// ---------
+// |0|1|2|3|
+// ---------
+// |4|5|6|7|
+// ---------
+// where the numbers are the indeces of into
+
 void ppm_write_header(FILE *f, size_t w, size_t h);
 void ppm_write_colour(FILE *f, colour_t c);
 

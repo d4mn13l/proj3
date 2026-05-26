@@ -23,6 +23,42 @@ image_t *ppm_image_new(size_t w, size_t h) {
 	return img;
 }
 
+image_t** ppm_image_split(image_t *src, size_t nx, size_t ny) {
+	size_t into_w = src->w / nx;
+	size_t into_h = src->h / ny;
+	ASSERT(into_w * nx == src->w, __LINE__, __FILE__);
+	ASSERT(into_h * ny == src->h, __LINE__, __FILE__);
+	// make sure that src->w is a multiple of w and src->h is multiple of h
+	// so that the image can actually be split up equally
+
+	size_t into_count = nx * ny;
+
+	image_t **into = malloc(into_count * sizeof(image_t));
+
+	// this just loops over into, initialises the target images and loops
+	// over the pixels to copy them over from src
+	// naming:
+	// ix/iy: x/y position of the current subimages
+	// px/py: x/y position of the current pixel
+	for (size_t iy = 0; iy < ny; iy++) {
+		for (size_t ix = 0; ix < nx; ix++) {
+			size_t cur_img_i = ix + iy * nx;
+			into[cur_img_i] = ppm_image_new(into_w, into_h);
+
+			size_t into_pix_i = 0;
+			for (size_t py = iy * into_h; py < (iy+1) * into_h; py++) {
+				for (size_t px = ix * into_w; px < (ix+1) * into_w; px++) {
+					into[cur_img_i]->pixels[into_pix_i] =
+						src->pixels[px + py * src->w];
+					into_pix_i++;
+				}
+			}
+		}
+	}
+
+	return into;
+}
+
 
 void ppm_write_header(FILE *f, size_t w, size_t h) {
 	fprintf(f, "P6\n%lu %lu\n%d\n", w, h, PPM_MAX_COLOUR);
