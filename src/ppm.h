@@ -25,6 +25,7 @@ static const colour_t COLOUR_BLACK = {0, 0, 0};
 
 image_t *ppm_image_new(size_t w, size_t h);
 void ppm_image_init(image_t *img, size_t w, size_t h);
+void ppm_image_free(image_t *img);
 
 image_t **ppm_image_split(image_t *src, size_t nx, size_t ny);
 // splits the image into nx * ny images  of equal size and returns them as an
@@ -40,7 +41,7 @@ image_t **ppm_image_split(image_t *src, size_t nx, size_t ny);
 void ppm_write_header(FILE *f, size_t w, size_t h);
 void ppm_write_colour(FILE *f, colour_t c);
 
-image_t *ppm_image_load(FILE *f);
-void ppm_image_write(FILE *f, image_t *img);
+void ppm_image_load(image_t *img, FILE *f);
+void ppm_image_write(image_t *img, FILE *f);
 
 #endif

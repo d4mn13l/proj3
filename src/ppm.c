@@ -23,6 +23,11 @@ image_t *ppm_image_new(size_t w, size_t h) {
 	return img;
 }
 
+void ppm_image_free(image_t *img) {
+	free(img->pixels);
+}
+
+
 image_t** ppm_image_split(image_t *src, size_t nx, size_t ny) {
 	size_t into_w = src->w / nx;
 	size_t into_h = src->h / ny;
@@ -68,7 +73,7 @@ void ppm_write_colour(FILE *f, colour_t c) {
 	fprintf(f, "%c%c%c", c.r, c.g, c.b);
 }
 
-image_t *ppm_image_load(FILE *f) {
+void ppm_image_load(image_t *img, FILE *f) {
 	size_t w, h;
 	char format[3] = {0};
 	int max_colour;
@@ -114,19 +119,18 @@ image_t *ppm_image_load(FILE *f) {
 	ASSERT_ALWAYS(r == 4, __LINE__, __FILE__" (failed to parse ppm header)");
 	ASSERT_ALWAYS(!strcmp(format, PPM_FORMAT), __LINE__, __FILE__);
 	ASSERT_ALWAYS(max_colour <= PPM_MAX_COLOUR, __LINE__, __FILE__);
-	
 
-	image_t *img = ppm_image_new(w, h);
+	// initialise the image
+	ppm_image_init(img, w, h);
 
 	// the pixels in the file are in binary form so we can load it like this
 	fread(img->pixels, sizeof(colour_t), w * h, f);
 
 	ASSERT_ALWAYS(fgetc(f) == EOF, __LINE__, __FILE__ \
 			" (when loading an image file, expected eof)");
-	return img;
 }
 
-void ppm_image_write(FILE *f, image_t *img) {
+void ppm_image_write(image_t *img, FILE *f) {
 	ppm_write_header(f, img->w, img->h);
 	// dump the pixels to the file
 	fwrite(img->pixels, sizeof(colour_t), img->h * img->w, f);
