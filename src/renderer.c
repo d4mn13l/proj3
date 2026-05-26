@@ -36,22 +36,22 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 	int r_x_sign = r.x / fabs(r.x);
 	int r_y_sign = r.y / fabs(r.y);
 
-	RENDER_DEBUG(printf("casting ray from %f %f %f in direction (%f %f %f)\n",
+	RENDER_DEBUG(printf("casting ray from %f %f %f in dir (%f %f %f)\n",
 	       i.x, i.y, i.z, r.x, r.y, r.z));
 
 	// travel distance for a full unit in x/y direction
 	// called s_w and s_h in the project description
 	vec3_t t = {fabs(1/r.x), fabs(1/r.y), 0};
-	// we actually do not need to care if r.x is 0, since the 1/r.x will be inf,
-	// so s.x will also be inf, therefore never be smaller than s.y and never be
-	// the direction of the next step
+	// we actually do not need to care if r.x is 0, since the 1/r.x will be
+	// inf, so s.x will also be inf, therefore never be smaller than s.y and
+	//  never be the direction of the next step
 	RENDER_DEBUG(printf("t: %f %f %f\n", t.x, t.y, t.z));
 
 	vec3_t in_cell_pos = {i.x - (int) i.x, i.y - (int) i.y, 0};
-	// the position inside of the cell, so only the decimal part of the position 
-	// we want something in the range [0, 1), however this calculation  can 
-	// result in negative values if the original position is also negative, 
-	// but always in the range (-1, 1)
+	// the position inside of the cell, so only the decimal part of the
+	// position we want something in the range [0, 1), however this
+	// calculation  can result in negative values if the original position
+	// is also negative, but always in the range (-1, 1)
 	if (in_cell_pos.x < 0) in_cell_pos.x += 1;
 	if (in_cell_pos.y < 0) in_cell_pos.y += 1;
 	// so this brings the value in the desired range
@@ -62,8 +62,8 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 	// initialize s (current position in the raycasting algorithm)
 	vec3_t s = {0,0,0};
 
-	// depending on if the ray goes to the right or left, take the distance to
-	// the right or left side of the cell as the starting value
+	// depending on if the ray goes to the right or left, take the distance
+	// to the right or left side of the cell as the starting value
 	// same for y direction
 	if (r.x > 0) {
 		s.x = (1 - in_cell_pos.x) * t.x;
@@ -85,8 +85,9 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 	// this remains unchanged if the ray doesnt hit anything
 
 	while (map_is_in_bounds(map, cell_pos_x, cell_pos_y)) {
-		RENDER_DEBUG(printf("now with s=(%f %f %f), cell pos = (%d %d) and last_stepped_x = %b\n",
-			s.x, s.y, s.z, cell_pos_x, cell_pos_y, last_stepped_x));
+		RENDER_DEBUG(printf("now with s=(%f %f %f), cell pos = (%d %d)"\
+				" and last_stepped_x = %b\n", s.x, s.y, s.z,
+				cell_pos_x, cell_pos_y, last_stepped_x));
 		cell_t hit_cell = map_get_cell(map, cell_pos_x, cell_pos_y);
 
 		if (hit_cell != CELL_EMPTY) {
@@ -134,7 +135,8 @@ void render(FILE *out, render_buf_t *buf, map_t *map, void *tex_atlas, int w, in
 	fov = deg_to_rad(fov);
 	rotation = deg_to_rad(rotation);
 
-	RENDER_DEBUG(printf("w: %d, h: %d, px: %f, py: %f fov: %f, rot: %f\n", w,h,px,py,fov,rotation));
+	RENDER_DEBUG(printf("w: %d, h: %d, px: %f, py: %f fov: %f, rot: %f\n",
+			w,h,px,py,fov,rotation));
 
 	// player position and aparture
 	vec3_t p = {px, py, 0.5};
@@ -148,8 +150,9 @@ void render(FILE *out, render_buf_t *buf, map_t *map, void *tex_atlas, int w, in
 	// principle point of the image
 	vec3_t c = vec3_sub(p, vec3_mul_scalar(f, d));
 
-	RENDER_DEBUG(printf("player pos: (%f %f %f), focal distance: %f, direction: (%f %f %f), priciple point: (%f %f %f)\n",
-		p.x, p.y, p.z, f, d.x, d.y, d.z, c.x, c.y, c.z));
+	RENDER_DEBUG(printf("player pos: (%f %f %f), focal distance: %f, "\
+			"direction: (%f %f %f), priciple point: (%f %f %f)\n",
+			p.x, p.y, p.z, f, d.x, d.y, d.z, c.x, c.y, c.z));
 
 	for (int x = 0; x < w; x++) {
 		// first cast a ray parallel to the floor from z=0
@@ -161,15 +164,18 @@ void render(FILE *out, render_buf_t *buf, map_t *map, void *tex_atlas, int w, in
 		r.z = 0;
 
 		ray_cast_result_t rc_res = cast_ray(map, p, r);
-		// the project description says to cast the ray from i, but we can cast if
-		// from p instead since the ray passes through p anyways and we dont want
-		// to see things between i and p. this also makes sure that the ray always
-		// starts in bounds so there is no need to handle the other case
+		// the project description says to cast the ray from i, but we
+		// can cast if from p instead since the ray passes through p
+		// anyways and we dont want to see things between i and p. this
+		// also makes sure that the ray always starts in bounds so there
+		// is no need to handle the other case
 
-		// NOTE if i change this to i for some reason, remember to also change it in
-		// the next line (definition of wall_distance)
+		// NOTE if i change this to i for some reason, remember to also
+		// change it in the next line (definition of wall_distance)
 
-		double wall_distance = vec3_magnitude(vec3_sub(rc_res.position, vec3_sub(p, CAMERA_OFFSET)));
+		double wall_distance = vec3_magnitude(
+			vec3_sub(rc_res.position, vec3_sub(p, CAMERA_OFFSET)));
+
 		RENDER_DEBUG(printf("wall distance: %f\n", wall_distance));
 
 		tex_type_t tex;
@@ -181,13 +187,17 @@ void render(FILE *out, render_buf_t *buf, map_t *map, void *tex_atlas, int w, in
 				case CELL_UNTEXTURED_WALL:
 					if (tex_atlas) tex = 2;
 					break;
-					tex = TEX_TYPE_NOTEX_WALL_X + rc_res.wall_orientation;
-					// if rc_res.wall_orientation is DIR_X, then this will result in
-					// TEX_UNTEXTURED_WALL_X. a bit hacky but its 1 less if statement
+					tex = TEX_TYPE_NOTEX_WALL_X
+						+ rc_res.wall_orientation;
+					// if rc_res.wall_orientation is DIR_X,
+					// then this will result in
+					// TEX_UNTEXTURED_WALL_X. a bit hacky
+					// but its 1 less if statement
 					break;
 				default:
-					// assume this is in [0,9], so a valid texture atlas index
-					// there shouldnt be any other possible value
+					// assume this is in [0,9], so a valid
+					// texture atlas index there shouldnt be
+					//  any other possible value
 					tex = rc_res.hit;
 			};
 		} else {
@@ -196,7 +206,8 @@ void render(FILE *out, render_buf_t *buf, map_t *map, void *tex_atlas, int w, in
 					tex = TEX_TYPE_EMPTY;
 					break;
 				default:
-					tex = TEX_TYPE_NOTEX_WALL_X + rc_res.wall_orientation;
+					tex = TEX_TYPE_NOTEX_WALL_X
+						+ rc_res.wall_orientation;
 					// works for the same reason as above
 			}
 		}
@@ -214,7 +225,8 @@ void render(FILE *out, render_buf_t *buf, map_t *map, void *tex_atlas, int w, in
 		}
 
 		// in this case the horizontal ray does hit
-		// TODO binary search the top/bottom of the wall or directly compute it?
+		// TODO binary search the top/bottom of the wall or
+		// is it possible to directly compute it?
 
 		for (int y = 0; y < h; y++) {
 			i = project_pixel_onto_image_plane(w, h, x, y, c, d);
@@ -254,7 +266,8 @@ void draw_untextured(FILE *f, render_buf_t *buf) {
 				ppm_write_colour(f, COLOUR_BLACK);
 				break;
 			default:
-				UNREACHABLE(__LINE__, __FILE__, "unexpected tex_type in draw_untextured");
+				UNREACHABLE(__LINE__, __FILE__,
+					"(unexpected tex_type in draw_untextured)");
 		}
 	}
 }
