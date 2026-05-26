@@ -37,24 +37,29 @@ image_t *ppm_image_load(FILE *f) {
 	char format[3] = {0};
 	int max_colour;
 
-	// put the ppm header in this buffer
-	// this allows to ignore comments
+	// parsing the header is a bit tricky since the standart allows for any
+	// whitespace to be between values, but comments skip entire lines
+	// the best solution i could think of is to copy the header into a
+	// buffer while ignoring comments and then use sscanf to get the values
+	// from the header
 	char header_buf[128] = {'\0'};
 	int read_elements_count = 0;
 	char c;
-	for (size_t i = 0; i < 127; i++) {
+	for (size_t i = 0; i < 128; i++) {
 		if (read_elements_count == 4) {
-			break;
+			goto header_copy_success;
 		}
 		c = fgetc(f);
-		ASSERT_ALWAYS(!feof(f), __LINE__, __FILE__" (found eof while parsing ppm header)");
+		ASSERT_ALWAYS(!feof(f), __LINE__, __FILE__ \
+			        " (found eof while parsing ppm header)");
 		if (isspace(c)) {
 			// skip ahead to next non-whitespace character
 			read_elements_count++;
 			while(isspace(fgetc(f)));
 			header_buf[i] = ' ';
-			// we also read the first non-whitespace character, so we need to move
-			// the file pointers current position back by 1
+			// we also read the first non-whitespace character, so
+			// we need to move the file pointers current position
+			// back by 1
 			fseek(f, -1, SEEK_CUR);
 		} else if (c == '#') {
 			// skip lines starting with #
@@ -64,19 +69,24 @@ image_t *ppm_image_load(FILE *f) {
 			header_buf[i] = c;
 		}
 	}
+	// this will be skipped if the 4 header elements are found before the
+	// buffer is filled
+	UNREACHABLE(__LINE__, __FILE__, "failed to parse ppm header (too long)");
 
-	int sscanf_res = sscanf(header_buf, "%2s %lu %lu %d", format, &w, &h, &max_colour);
-	ASSERT_ALWAYS(sscanf_res == 4, __LINE__, __FILE__" (failed to parse ppm header)");
+	header_copy_success:
+	int r = sscanf(header_buf, "%2s %lu %lu %d", format, &w, &h, &max_colour);
+	ASSERT_ALWAYS(r == 4, __LINE__, __FILE__" (failed to parse ppm header)");
 	ASSERT_ALWAYS(!strcmp(format, PPM_FORMAT), __LINE__, __FILE__);
 	ASSERT_ALWAYS(max_colour <= PPM_MAX_COLOUR, __LINE__, __FILE__);
 	
 
 	image_t *img = ppm_image_new(w, h);
 
-	// since the pixels in the file are in binary form we can load it like this
+	// the pixels in the file are in binary form so we can load it like this
 	fread(img->pixels, sizeof(colour_t), w * h, f);
 
-	ASSERT_ALWAYS(fgetc(f) == EOF, __LINE__, __FILE__" (in image file, expected eof)");
+	ASSERT_ALWAYS(fgetc(f) == EOF, __LINE__, __FILE__ \
+			" (when loading an image file, expected eof)");
 	return img;
 }
 
