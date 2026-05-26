@@ -2,15 +2,16 @@
 #include <string.h>
 
 #include "map.h"
+#include "ppm.h"
 #include "renderer.h"
 #include "util.h"
 
 
 int main(int argc, char *argv[]) {
-	ASSERT(argc >= 2, __LINE__, __FILE__);
+	ASSERT_ALWAYS(argc >= 2, __LINE__, __FILE__);
 
 	FILE *map_file = fopen(argv[1], "r");
-	ASSERT(map_file != NULL, __LINE__, __FILE__);
+	ASSERT_ALWAYS(map_file != NULL, __LINE__, __FILE__);
 
 	map_t map;
 	map_load(&map, map_file);
@@ -21,10 +22,10 @@ int main(int argc, char *argv[]) {
 	if (!strcmp(argv[2], "-I")) {
 		map_print_debug_info(&map);
 	} else if (!strcmp(argv[2], "-M")) {
-		ASSERT(argc == 4, __LINE__, __FILE__);
+		ASSERT_ALWAYS(argc == 4, __LINE__, __FILE__);
 		map_render_minimap(&map, argv[3]);
 	} else if (!strcmp(argv[2], "-R")) {
-		ASSERT(argc == 10, __LINE__, __FILE__);
+		ASSERT_ALWAYS(argc == 10, __LINE__, __FILE__);
 		
 		int width = atoi(argv[4]);
 		int height = atoi(argv[5]);
@@ -34,9 +35,20 @@ int main(int argc, char *argv[]) {
 		double py = atof(argv[9]);
 	
 		FILE *f = fopen(argv[3], "w");
-		ASSERT(f != NULL, __LINE__, __FILE__);
+		ASSERT_ALWAYS(f != NULL, __LINE__, __FILE__);
 		render(f, NULL, &map, NULL, width, height, px, py, fov, rotation);
-	} else {
+	}
+	
+	#ifdef DEBUG
+	else if (!strcmp(argv[2], "-P")) {
+		image_t *img = ppm_image_load(fopen(argv[3], "r"));
+		FILE *out = fopen(argv[4], "w");
+		ASSERT(out != NULL, __LINE__, __FILE__);
+		ppm_image_write(out, img);
+	}
+	#endif
+	
+	else {
 		printf("unknown option %s", argv[2]);
 	}
 
