@@ -4,27 +4,29 @@
 #include <stdint.h>
 #include "map.h"
 #include "maths.h"
+#include "ppm.h"
 
 
 #define CAMERA_OFFSET (vec3_t) {0,0,0.5}
 
 enum {
-	TEX_FLOOR = -3,
-	TEX_CEIL = -2,
-	TEX_EMPTY = -1,
+	TEX_TYPE_FLOOR = -3,
+	TEX_TYPE_CEIL = -2,
+	TEX_TYPE_EMPTY = -1,
 	// 0 to 9 are reserved for textured walls
-	TEX_UNTEXTURED_WALL_X = 10,
-	TEX_UNTEXTURED_WALL_Y = 11,
+	TEX_TYPE_NOTEX_WALL_X = 10,
+	TEX_TYPE_NOTEX_WALL_Y = 11,
 };
 
-typedef int8_t texture_t;
+typedef int8_t tex_type_t;
 
 
 typedef struct {
-	texture_t *pixels;
+	tex_type_t *pixels;
 	int w, h;
 } render_buf_t;
-// internal representation of the rendered view containing TEXTURE_... stuff
+// internal representation of the rendered view containing TEX_TYPE_... stuff
+
 
 typedef struct {
 	cell_t hit;

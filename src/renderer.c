@@ -172,16 +172,16 @@ void render(FILE *out, render_buf_t *buf, map_t *map, void *tex_atlas, int w, in
 		double wall_distance = vec3_magnitude(vec3_sub(rc_res.position, vec3_sub(p, CAMERA_OFFSET)));
 		RENDER_DEBUG(printf("wall distance: %f\n", wall_distance));
 
-		texture_t tex;
+		tex_type_t tex;
 		if (tex_atlas != NULL) {
 			switch (rc_res.hit) {
 				case CELL_EMPTY:
-					tex = TEX_EMPTY;
+					tex = TEX_TYPE_EMPTY;
 					break;
 				case CELL_UNTEXTURED_WALL:
 					if (tex_atlas) tex = 2;
 					break;
-					tex = TEX_UNTEXTURED_WALL_Y - rc_res.is_x_wall;
+					tex = TEX_TYPE_NOTEX_WALL_Y - rc_res.is_x_wall;
 					// if rc_res.is_x_wall is true, then this will result in
 					// TEX_UNTEXTURED_WALL_X. a bit hacky but its 1 less if statement
 					break;
@@ -193,22 +193,22 @@ void render(FILE *out, render_buf_t *buf, map_t *map, void *tex_atlas, int w, in
 		} else {
 			switch (rc_res.hit) {
 				case CELL_EMPTY:
-					tex = TEX_EMPTY;
+					tex = TEX_TYPE_EMPTY;
 					break;
 				default:
-					tex = TEX_UNTEXTURED_WALL_Y - rc_res.is_x_wall;
+					tex = TEX_TYPE_NOTEX_WALL_Y - rc_res.is_x_wall;
 					// works for the same reason as above
 			}
 		}
 
 
-		if (tex == TEX_EMPTY) {
+		if (tex == TEX_TYPE_EMPTY) {
 			// FIXME what to put in middle row if h is odd?
 			for (int y = 0; y < h/2; y++) {
-				buf->pixels[x + y * w] = TEX_CEIL;
+				buf->pixels[x + y * w] = TEX_TYPE_CEIL;
 			}
 			for (int y = h/2; y < h; y++) {
-				buf->pixels[x + y * w] = TEX_FLOOR;
+				buf->pixels[x + y * w] = TEX_TYPE_FLOOR;
 			}
 			continue;
 		}
@@ -223,9 +223,9 @@ void render(FILE *out, render_buf_t *buf, map_t *map, void *tex_atlas, int w, in
 			double intersection_z = p.z + r.z * wall_distance;
 
 			if (intersection_z < 0.0001) {
-				buf->pixels[x + y * w] = TEX_FLOOR;
+				buf->pixels[x + y * w] = TEX_TYPE_FLOOR;
 			} else if (intersection_z > 1.0001) {
-				buf->pixels[x + y * w] = TEX_FLOOR;
+				buf->pixels[x + y * w] = TEX_TYPE_FLOOR;
 			} else {
 				buf->pixels[x + y * w] = tex;
 			}
@@ -242,19 +242,19 @@ void render(FILE *out, render_buf_t *buf, map_t *map, void *tex_atlas, int w, in
 void draw_untextured(FILE *f, render_buf_t *buf) {
 	for (int i = 0; i < buf->w * buf->h; i++) {
 		switch (buf->pixels[i]) {
-			case TEX_UNTEXTURED_WALL_X:
+			case TEX_TYPE_NOTEX_WALL_X:
 				ppm_write_colour(f, COLOUR_GREEN);
 				break;
-			case TEX_UNTEXTURED_WALL_Y:
+			case TEX_TYPE_NOTEX_WALL_Y:
 				ppm_write_colour(f, COLOUR_RED);
 				break;
-			case TEX_CEIL:
-			case TEX_FLOOR:
-			case TEX_EMPTY:
+			case TEX_TYPE_CEIL:
+			case TEX_TYPE_FLOOR:
+			case TEX_TYPE_EMPTY:
 				ppm_write_colour(f, COLOUR_BLACK);
 				break;
 			default:
-				UNREACHABLE(__LINE__, __FILE__, "unexpected tex in draw_untextured");
+				UNREACHABLE(__LINE__, __FILE__, "unexpected tex_type in draw_untextured");
 		}
 	}
 }
