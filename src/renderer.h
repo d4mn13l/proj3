@@ -18,6 +18,12 @@ enum {
 	TEX_TYPE_NOTEX_WALL_Y = 11,
 };
 
+enum {
+	DIR_X = 0,
+	DIR_Y = 1,
+};
+
+
 typedef int8_t tex_type_t;
 
 
@@ -31,8 +37,20 @@ typedef struct {
 typedef struct {
 	cell_t hit;
 	vec3_t position;
-	bool is_x_wall;
+	int wall_orientation;
 } ray_cast_result_t;
+
+
+typedef struct {
+	image_t **tex;
+	size_t count;
+	size_t w, h;
+	// image dimensions
+} tex_atlas_t;
+
+
+void tex_atlas_load(tex_atlas_t* tex_atlas, FILE *f, size_t nx, size_t ny);
+
 
 render_buf_t *render_buf_new(size_t w, size_t h);
 void render_buf_init(render_buf_t *buf, size_t w, size_t h);

@@ -77,7 +77,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 	}
 
 	// now we can begin with the actual raycasting algorithm
-	bool last_stepped_x = s.x < s.y;
+	int last_stepped = s.x < s.y ? DIR_X : DIR_Y;
 	// TODO does this initial value make sense?
 
 	ray_cast_result_t res;
@@ -98,18 +98,18 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 		if (s.x < s.y) {
 			s.x += t.x;
 			cell_pos_x += r_x_sign;
-			last_stepped_x = true;
+			last_stepped = DIR_X;
 		} else {
 			s.y += t.y;
 			cell_pos_y += r_y_sign;
-			last_stepped_x = false;
+			last_stepped = DIR_Y;
 		}
 	}
 
-	res.is_x_wall = !last_stepped_x;
-	// negate this because uhh idk
+	res.wall_orientation = 1 - last_stepped;
+	// flip this because uhh idk
 	// theres probably another flip somewhere else that cancels this out
-	if (last_stepped_x) {
+	if (last_stepped == DIR_X) {
 		res.position = vec3_add(i, vec3_mul_scalar(s.x - t.x, r));
 	} else {
 		res.position = vec3_add(i, vec3_mul_scalar(s.y - t.y, r));
@@ -181,8 +181,8 @@ void render(FILE *out, render_buf_t *buf, map_t *map, void *tex_atlas, int w, in
 				case CELL_UNTEXTURED_WALL:
 					if (tex_atlas) tex = 2;
 					break;
-					tex = TEX_TYPE_NOTEX_WALL_Y - rc_res.is_x_wall;
-					// if rc_res.is_x_wall is true, then this will result in
+					tex = TEX_TYPE_NOTEX_WALL_X + rc_res.wall_orientation;
+					// if rc_res.wall_orientation is DIR_X, then this will result in
 					// TEX_UNTEXTURED_WALL_X. a bit hacky but its 1 less if statement
 					break;
 				default:
@@ -196,7 +196,7 @@ void render(FILE *out, render_buf_t *buf, map_t *map, void *tex_atlas, int w, in
 					tex = TEX_TYPE_EMPTY;
 					break;
 				default:
-					tex = TEX_TYPE_NOTEX_WALL_Y - rc_res.is_x_wall;
+					tex = TEX_TYPE_NOTEX_WALL_X + rc_res.wall_orientation;
 					// works for the same reason as above
 			}
 		}
@@ -257,6 +257,19 @@ void draw_untextured(FILE *f, render_buf_t *buf) {
 				UNREACHABLE(__LINE__, __FILE__, "unexpected tex_type in draw_untextured");
 		}
 	}
+}
+
+
+void tex_atlas_load(tex_atlas_t *tex_atlas, FILE *f, size_t nx, size_t ny) {
+	image_t img;
+	ppm_image_load(&img, f);
+
+	tex_atlas->tex = ppm_image_split(&img, nx, ny);
+	ppm_image_free(&img);
+
+	tex_atlas->w = nx;
+	tex_atlas->h = ny;
+	tex_atlas->count = nx * ny;
 }
 
 
