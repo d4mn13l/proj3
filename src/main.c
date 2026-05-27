@@ -27,8 +27,9 @@ int main(int argc, char *argv[]) {
 	} else if (!strcmp(argv[2], "-R")) {
 		ASSERT_ALWAYS(argc == 10, __LINE__, __FILE__);
 		
-		int width = atoi(argv[4]);
-		int height = atoi(argv[5]);
+		size_t width, height;
+		sscanf(argv[4], "%lu", &width);
+		sscanf(argv[5], "%lu", &height);
 		double fov = atof(argv[6]);
 		double rotation = atof(argv[7]);
 		double px = atof(argv[8]);

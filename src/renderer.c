@@ -116,7 +116,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 }
 
 
- void render(FILE *out, map_t *map, int w, int h, double px, double py,
+ void render(FILE *out, map_t *map, size_t w, size_t h, double px, double py,
 		double fov, double rotation, draw_function_t draw,
 		tex_atlas_t *tex_atlas, image_t *img) {
 	
@@ -145,7 +145,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 			"direction: (%f %f %f), priciple point: (%f %f %f)\n",
 			p.x, p.y, p.z, f, d.x, d.y, d.z, c.x, c.y, c.z));
 
-	for (int x = 0; x < w; x++) {
+	for (size_t x = 0; x < w; x++) {
 		// first cast a ray parallel to the floor from z=0
 		// this checks if there is even a wall on that column at all
 
@@ -172,7 +172,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 		// TODO binary search the top/bottom of the wall or
 		// is it possible to directly compute it?
 
-		for (int y = 0; y < h; y++) {
+		for (size_t y = 0; y < h; y++) {
 			i = project_pixel_onto_image_plane(w, h, x, y, c, d);
 			r = vec3_normalised(vec3_sub(p, i));
 
@@ -186,25 +186,18 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 
 
 void draw_untextured(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
-		int px, int py) {
-	switch (rc_res->hit) {
-	case CELL_EMPTY:
+		size_t px, size_t py) {
+	if (rc_res->hit == CELL_EMPTY || rc_res->position.z < 0.0001 ||
+			rc_res->position.z > 0.9999) {
 		img->pixels[px + py * img->w] = COLOUR_BLACK;
-		break;
-	default:
-		if (rc_res->position.z < 0.0001 || rc_res->position.z > 0.9999) {
-			img->pixels[px + py * img->w] = COLOUR_BLACK;
-			break;
-		}
-		switch (rc_res->wall_orientation) {
-			case DIR_X:
-				img->pixels[px + py * img->w]
-					= COLOUR_GREEN;
-				break;
-			case DIR_Y:
-				img->pixels[px + py * img->w]
-					= COLOUR_RED;
-		}
+		return;
+	}
+	switch (rc_res->wall_orientation) {
+		case DIR_X:
+			img->pixels[px + py * img->w] = COLOUR_GREEN;
+			return;
+		case DIR_Y:
+			img->pixels[px + py * img->w] = COLOUR_RED;
 	}
 }
 
