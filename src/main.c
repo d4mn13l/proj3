@@ -40,8 +40,36 @@ int main(int argc, char *argv[]) {
 		image_t img;
 		ppm_image_init(&img, width, height);
 		render(&img, &map, width, height, px, py, fov, rotation,
-			draw_untextured, NULL);
+			draw_untextured, NULL, false);
 		ppm_image_write(&img, f);
+		ppm_image_free(&img);
+	} else if (!strcmp(argv[2], "-T")) {
+		size_t tex_count_x, tex_count_y, w, h;
+		sscanf(argv[4], "%lu", &tex_count_x);
+		sscanf(argv[5], "%lu", &tex_count_y);
+		sscanf(argv[7], "%lu", &w);
+		sscanf(argv[8], "%lu", &h);
+		double fov = atof(argv[9]);
+		double rotation = atof(argv[10]);
+		double px = atof(argv[11]);
+		double py = atof(argv[12]);
+
+		bool do_shading;
+		if (argc > 13) do_shading = atoi(argv[13]);
+
+		FILE *ta_file = fopen(argv[3], "r");
+		tex_atlas_t ta;
+		tex_atlas_load(&ta, ta_file, tex_count_x, tex_count_y);
+		fclose(ta_file);
+
+		image_t img;
+		ppm_image_init(&img, w, h);
+		render(&img, &map, w, h, px, py, fov, rotation,
+				draw_textured_no_floor, &ta, do_shading);
+
+		FILE *out = fopen(argv[6], "w");
+		ppm_image_write(&img, out);
+		fclose(out);
 		ppm_image_free(&img);
 	}
 	

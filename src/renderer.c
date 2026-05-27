@@ -79,6 +79,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 	// this remains unchanged if the ray doesnt hit anything
 	res.cell_x = i.x < 0 ? (int) i.x - 1 : (int) i.x;
 	res.cell_y = i.y < 0 ? (int) i.y - 1 : (int) i.y;
+	res.ray_direction = r;
 
 	while (map_is_in_bounds(map, res.cell_x, res.cell_y)) {
 		RENDER_DEBUG(printf("now with s=(%f %f %f), cell pos = (%d %d)"\
@@ -118,7 +119,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 
  void render(image_t *img, map_t *map, size_t w, size_t h, double px,
 		double py, double fov, double rotation, draw_function_t draw,
-		tex_atlas_t *tex_atlas) {
+		tex_atlas_t *tex_atlas, bool do_shading) {
 	
 	ASSERT(0 < fov && fov < 180, __LINE__, __FILE__);
 	
@@ -177,16 +178,17 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 			r = vec3_normalised(vec3_sub(p, i));
 
 			rc_res.position.z = p.z + r.z * wall_distance;
+			// printf("rc_res pos for x = %lu, y = %lu: (%f %f %f)\n", x, y, rc_res.position.x, rc_res.position.y, rc_res.position.z);
 			// we can leave the other values is rc_res as they dont
 			// change
-			draw(img, tex_atlas, &rc_res, x, y);
+			draw(img, tex_atlas, &rc_res, do_shading, x, y);
 		}
 	}
 }
 
 
 void draw_untextured(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
-		size_t px, size_t py) {
+		bool do_shading, size_t px, size_t py) {
 	if (rc_res->hit == CELL_EMPTY || rc_res->position.z < 0.0001 ||
 			rc_res->position.z > 0.9999) {
 		img->pixels[px + py * img->w] = COLOUR_BLACK;
@@ -201,16 +203,60 @@ void draw_untextured(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
 	}
 }
 
+void draw_textured_no_floor(image_t *img, tex_atlas_t *ta,
+		ray_cast_result_t *rc_res, bool do_shading,
+		size_t px, size_t py) {
+	if (rc_res->hit == CELL_EMPTY || rc_res->position.z < 0.0001 ||
+			rc_res->position.z > 0.9999) {
+		img->pixels[px + py * img->w] = COLOUR_BLACK;
+		return;
+	}
+	size_t tx, ty;
+	//texture coordinates
+	ty = (ta->h - 1) - (size_t) (rc_res->position.z * (double) ta->h);
 
+	switch (rc_res->wall_orientation) {
+	case DIR_X:
+		tx = (size_t) ((rc_res->position.x - (int) rc_res->position.x) * (double) ta->w);
+		if (rc_res->ray_direction.y < 0) tx = (ta->w - 1) - tx;
+		break;
+	case DIR_Y:
+		tx = (size_t) ((rc_res->position.y - (int) rc_res->position.y) * (double) ta->w);
+		if (rc_res->ray_direction.x > 0) tx = (ta->w - 1) - tx;
+		break;
+	default:
+		UNREACHABLE(__LINE__, __FILE__, "invalid wall_orientaion");
+	}
+
+	tx = (ta->w - 1) - tx;
+	size_t tex_index = rc_res->hit;
+	if (tex_index == CELL_UNTEXTURED_WALL) tex_index = 2;
+	// as specified in the project document
+
+	ASSERT(tex_index < ta->count, __LINE__, __FILE__);
+
+	colour_t *pixel = &img->pixels[px + py * img->w];
+
+	*pixel = ta->tex[tex_index]->pixels[tx + ty * ta->w];
+
+	if (do_shading && rc_res->wall_orientation == DIR_X) {
+		pixel->r = (pixel->r >> 1) & 0x7F;
+		pixel->g = (pixel->g >> 1) & 0x7F;
+		pixel->b = (pixel->b >> 1) & 0x7F;
+	}
+}
+ 
 void tex_atlas_load(tex_atlas_t *tex_atlas, FILE *f, size_t nx, size_t ny) {
 	image_t img;
 	ppm_image_load(&img, f);
 
 	tex_atlas->tex = ppm_image_split(&img, nx, ny);
+	// this implicitly confirms that nx and ny are non-zero
 	ppm_image_free(&img);
 
-	tex_atlas->w = nx;
-	tex_atlas->h = ny;
+	tex_atlas->nx = nx;
+	tex_atlas->ny = ny;
+	tex_atlas->w = tex_atlas->tex[0]->w;
+	tex_atlas->h = tex_atlas->tex[0]->h;
 	tex_atlas->count = nx * ny;
 }
-
