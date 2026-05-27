@@ -116,9 +116,9 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 }
 
 
- void render(FILE *out, map_t *map, size_t w, size_t h, double px, double py,
-		double fov, double rotation, draw_function_t draw,
-		tex_atlas_t *tex_atlas, image_t *img) {
+ void render(image_t *img, map_t *map, size_t w, size_t h, double px,
+		double py, double fov, double rotation, draw_function_t draw,
+		tex_atlas_t *tex_atlas) {
 	
 	ASSERT(0 < fov && fov < 180, __LINE__, __FILE__);
 	

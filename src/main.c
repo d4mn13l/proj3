@@ -39,8 +39,8 @@ int main(int argc, char *argv[]) {
 		ASSERT_ALWAYS(f != NULL, __LINE__, __FILE__);
 		image_t img;
 		ppm_image_init(&img, width, height);
-		render(f, &map, width, height, px, py, fov, rotation,
-			draw_untextured, NULL, &img);
+		render(&img, &map, width, height, px, py, fov, rotation,
+			draw_untextured, NULL);
 		ppm_image_write(&img, f);
 		ppm_image_free(&img);
 	}
