@@ -10,9 +10,6 @@
 
 
 
-void draw_untextured(FILE*, render_buf_t*);
-
-
 // projects a pixel (x, y) from the output image onto the virtual camera plane 
 // fov and view_direction in rad
 // w, h: size of the image
@@ -56,9 +53,6 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 	if (in_cell_pos.y < 0) in_cell_pos.y += 1;
 	// so this brings the value in the desired range
 
-	int cell_pos_x = i.x < 0 ? (int) i.x - 1 : (int) i.x;
-	int cell_pos_y = i.y < 0 ? (int) i.y - 1 : (int) i.y;
-
 	// initialize s (current position in the raycasting algorithm)
 	vec3_t s = {0,0,0};
 
@@ -83,12 +77,14 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 	ray_cast_result_t res;
 	res.hit = CELL_EMPTY;
 	// this remains unchanged if the ray doesnt hit anything
+	res.cell_x = i.x < 0 ? (int) i.x - 1 : (int) i.x;
+	res.cell_y = i.y < 0 ? (int) i.y - 1 : (int) i.y;
 
-	while (map_is_in_bounds(map, cell_pos_x, cell_pos_y)) {
+	while (map_is_in_bounds(map, res.cell_x, res.cell_y)) {
 		RENDER_DEBUG(printf("now with s=(%f %f %f), cell pos = (%d %d)"\
 				" and last_stepped_x = %b\n", s.x, s.y, s.z,
-				cell_pos_x, cell_pos_y, last_stepped_x));
-		cell_t hit_cell = map_get_cell(map, cell_pos_x, cell_pos_y);
+				res.cell_x, res.cell_y, last_stepped_x));
+		cell_t hit_cell = map_get_cell(map, res.cell_x, res.cell_y);
 
 		if (hit_cell != CELL_EMPTY) {
 			res.hit = hit_cell;
@@ -98,11 +94,11 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 		// now step
 		if (s.x < s.y) {
 			s.x += t.x;
-			cell_pos_x += r_x_sign;
+			res.cell_x += r_x_sign;
 			last_stepped = DIR_X;
 		} else {
 			s.y += t.y;
-			cell_pos_y += r_y_sign;
+			res.cell_y += r_y_sign;
 			last_stepped = DIR_Y;
 		}
 	}
@@ -120,16 +116,11 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 }
 
 
-void render(FILE *out, render_buf_t *buf, map_t *map, void *tex_atlas, int w, int h, double px, 
-		double py, double fov, double rotation) {
-	ASSERT(0 < fov && fov < 180, __LINE__, __FILE__);
+ void render(FILE *out, map_t *map, int w, int h, double px, double py,
+		double fov, double rotation, draw_function_t draw,
+		tex_atlas_t *tex_atlas, image_t *img) {
 	
-	bool free_render_buf = false;
-	if (buf == NULL) {
-		buf = render_buf_new(w, h);
-		free_render_buf = true;
-	}
-
+	ASSERT(0 < fov && fov < 180, __LINE__, __FILE__);
 	
 	// convert fov and rotation to radians
 	fov = deg_to_rad(fov);
@@ -174,57 +165,10 @@ void render(FILE *out, render_buf_t *buf, map_t *map, void *tex_atlas, int w, in
 		// change it in the next line (definition of wall_distance)
 
 		double wall_distance = vec3_magnitude(
-			vec3_sub(rc_res.position, vec3_sub(p, CAMERA_OFFSET)));
+		 vec3_sub(rc_res.position, vec3_sub(p, CAMERA_OFFSET)));
 
 		RENDER_DEBUG(printf("wall distance: %f\n", wall_distance));
 
-		tex_type_t tex;
-		if (tex_atlas != NULL) {
-			switch (rc_res.hit) {
-				case CELL_EMPTY:
-					tex = TEX_TYPE_EMPTY;
-					break;
-				case CELL_UNTEXTURED_WALL:
-					if (tex_atlas) tex = 2;
-					break;
-					tex = TEX_TYPE_NOTEX_WALL_X
-						+ rc_res.wall_orientation;
-					// if rc_res.wall_orientation is DIR_X,
-					// then this will result in
-					// TEX_UNTEXTURED_WALL_X. a bit hacky
-					// but its 1 less if statement
-					break;
-				default:
-					// assume this is in [0,9], so a valid
-					// texture atlas index there shouldnt be
-					//  any other possible value
-					tex = rc_res.hit;
-			};
-		} else {
-			switch (rc_res.hit) {
-				case CELL_EMPTY:
-					tex = TEX_TYPE_EMPTY;
-					break;
-				default:
-					tex = TEX_TYPE_NOTEX_WALL_X
-						+ rc_res.wall_orientation;
-					// works for the same reason as above
-			}
-		}
-
-
-		if (tex == TEX_TYPE_EMPTY) {
-			// FIXME what to put in middle row if h is odd?
-			for (int y = 0; y < h/2; y++) {
-				buf->pixels[x + y * w] = TEX_TYPE_CEIL;
-			}
-			for (int y = h/2; y < h; y++) {
-				buf->pixels[x + y * w] = TEX_TYPE_FLOOR;
-			}
-			continue;
-		}
-
-		// in this case the horizontal ray does hit
 		// TODO binary search the top/bottom of the wall or
 		// is it possible to directly compute it?
 
@@ -232,42 +176,34 @@ void render(FILE *out, render_buf_t *buf, map_t *map, void *tex_atlas, int w, in
 			i = project_pixel_onto_image_plane(w, h, x, y, c, d);
 			r = vec3_normalised(vec3_sub(p, i));
 
-			double intersection_z = p.z + r.z * wall_distance;
-
-			if (intersection_z < 0.0001) {
-				buf->pixels[x + y * w] = TEX_TYPE_FLOOR;
-			} else if (intersection_z > 1.0001) {
-				buf->pixels[x + y * w] = TEX_TYPE_FLOOR;
-			} else {
-				buf->pixels[x + y * w] = tex;
-			}
+			rc_res.position.z = p.z + r.z * wall_distance;
+			// we can leave the other values is rc_res as they dont
+			// change
+			draw(img, tex_atlas, &rc_res, x, y);
 		}
 	}
-
-	ppm_write_header(out, w, h);
-	draw_untextured(out, buf);
-
-	if (free_render_buf) free(buf);
 }
 
 
-void draw_untextured(FILE *f, render_buf_t *buf) {
-	for (int i = 0; i < buf->w * buf->h; i++) {
-		switch (buf->pixels[i]) {
-			case TEX_TYPE_NOTEX_WALL_X:
-				ppm_write_colour(f, COLOUR_GREEN);
+void draw_untextured(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
+		int px, int py) {
+	switch (rc_res->hit) {
+	case CELL_EMPTY:
+		img->pixels[px + py * img->w] = COLOUR_BLACK;
+		break;
+	default:
+		if (rc_res->position.z < 0.0001 || rc_res->position.z > 0.9999) {
+			img->pixels[px + py * img->w] = COLOUR_BLACK;
+			break;
+		}
+		switch (rc_res->wall_orientation) {
+			case DIR_X:
+				img->pixels[px + py * img->w]
+					= COLOUR_GREEN;
 				break;
-			case TEX_TYPE_NOTEX_WALL_Y:
-				ppm_write_colour(f, COLOUR_RED);
-				break;
-			case TEX_TYPE_CEIL:
-			case TEX_TYPE_FLOOR:
-			case TEX_TYPE_EMPTY:
-				ppm_write_colour(f, COLOUR_BLACK);
-				break;
-			default:
-				UNREACHABLE(__LINE__, __FILE__,
-					"(unexpected tex_type in draw_untextured)");
+			case DIR_Y:
+				img->pixels[px + py * img->w]
+					= COLOUR_RED;
 		}
 	}
 }
@@ -283,22 +219,5 @@ void tex_atlas_load(tex_atlas_t *tex_atlas, FILE *f, size_t nx, size_t ny) {
 	tex_atlas->w = nx;
 	tex_atlas->h = ny;
 	tex_atlas->count = nx * ny;
-}
-
-
-
-render_buf_t* render_buf_new(size_t w, size_t h) {
-	render_buf_t *buf = malloc(sizeof(render_buf_t));
-	ASSERT(buf != NULL, __LINE__, __FILE__);
-	render_buf_init(buf, w, h);
-	return buf;
-}
-
-
-void render_buf_init(render_buf_t *buf, size_t w, size_t h) {
-	buf->w = w;
-	buf->h = h;
-	buf->pixels = malloc(w * h * sizeof(int8_t));
-	ASSERT(buf->pixels != NULL, __LINE__, __FILE__);
 }
 

@@ -45,21 +45,23 @@ image_t** ppm_image_split(image_t *src, size_t nx, size_t ny) {
 	// naming:
 	// ix/iy: x/y position of the current subimages
 	// px/py: x/y position of the current pixel
-	for (size_t iy = 0; iy < ny; iy++) {
-		for (size_t ix = 0; ix < nx; ix++) {
-			size_t cur_img_i = ix + iy * nx;
-			into[cur_img_i] = ppm_image_new(into_w, into_h);
+	// idk if this formatting is better readable than indenting everything
+	// but it was too disgusting before to leave it
+	for (size_t iy = 0; iy < ny; iy++)
+	for (size_t ix = 0; ix < nx; ix++) {
+		size_t cur_img_i = ix + iy * nx;
+		into[cur_img_i] = ppm_image_new(into_w, into_h);
+		size_t into_pix_i = 0;
 
-			size_t into_pix_i = 0;
-			for (size_t py = iy * into_h; py < (iy+1) * into_h; py++) {
-				for (size_t px = ix * into_w; px < (ix+1) * into_w; px++) {
-					into[cur_img_i]->pixels[into_pix_i] =
-						src->pixels[px + py * src->w];
-					into_pix_i++;
-				}
-			}
+		for (size_t py = iy * into_h; py < (iy+1) * into_h; py++)
+		for (size_t px = ix * into_w; px < (ix+1) * into_w; px++) {
+			into[cur_img_i]->pixels[into_pix_i] =
+				src->pixels[px + py * src->w];
+			into_pix_i++;
 		}
+		
 	}
+
 
 	return into;
 }

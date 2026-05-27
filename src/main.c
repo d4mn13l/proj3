@@ -36,7 +36,12 @@ int main(int argc, char *argv[]) {
 	
 		FILE *f = fopen(argv[3], "w");
 		ASSERT_ALWAYS(f != NULL, __LINE__, __FILE__);
-		render(f, NULL, &map, NULL, width, height, px, py, fov, rotation);
+		image_t img;
+		ppm_image_init(&img, width, height);
+		render(f, &map, width, height, px, py, fov, rotation,
+			draw_untextured, NULL, &img);
+		ppm_image_write(&img, f);
+		ppm_image_free(&img);
 	}
 	
 	#ifdef DEBUG
