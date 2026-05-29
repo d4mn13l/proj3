@@ -54,10 +54,11 @@ int main(int argc, char *argv[]) {
 		double px = atof(argv[11]);
 		double py = atof(argv[12]);
 
-		bool do_shading;
+		bool do_shading = false;
 		if (argc > 13) do_shading = atoi(argv[13]);
 
 		FILE *ta_file = fopen(argv[3], "r");
+		ASSERT_ALWAYS(ta_file != NULL, __LINE__, __FILE__);
 		tex_atlas_t ta;
 		tex_atlas_load(&ta, ta_file, tex_count_x, tex_count_y);
 		fclose(ta_file);
@@ -68,6 +69,7 @@ int main(int argc, char *argv[]) {
 				draw_textured_no_floor, &ta, do_shading);
 
 		FILE *out = fopen(argv[6], "w");
+		ASSERT_ALWAYS(out != NULL, __LINE__, __FILE__);
 		ppm_image_write(&img, out);
 		fclose(out);
 		ppm_image_free(&img);

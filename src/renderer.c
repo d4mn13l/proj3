@@ -152,10 +152,11 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 
 		vec3_t i = project_pixel_onto_image_plane(w, h, x, 0, c, d);
 		i.z = 0.5;
-		vec3_t r = vec3_sub(p, i);
-		r.z = 0;
+		vec3_t horizontal_r = vec3_sub(p, i);
+		horizontal_r.z = 0;
+		horizontal_r = vec3_normalised(horizontal_r);
 
-		ray_cast_result_t rc_res = cast_ray(map, p, r);
+		ray_cast_result_t rc_res = cast_ray(map, p, horizontal_r);
 		// the project description says to cast the ray from i, but we
 		// can cast if from p instead since the ray passes through p
 		// anyways and we dont want to see things between i and p. this
@@ -166,19 +167,37 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 		// change it in the next line (definition of wall_distance)
 
 		double wall_distance = vec3_magnitude(
-		 vec3_sub(rc_res.position, vec3_sub(p, CAMERA_OFFSET)));
-
+		 vec3_sub(rc_res.position, p));
 		RENDER_DEBUG(printf("wall distance: %f\n", wall_distance));
 
-		// TODO binary search the top/bottom of the wall or
-		// is it possible to directly compute it?
-
+		// now loop over all rows (y pixels) in this column
+		vec3_t r = horizontal_r;
+		// new direction for the z-angled rays
 		for (size_t y = 0; y < h; y++) {
+			// we dont have to cast another ray here.
+			// the idea here is that we represent r as
+			// {horizontal_r.x, horizontal_r.y, some z}
+			// this must be possible because they both point in the
+			// same direction on the x-y plane
+			// then if we do that, we know that wall_distance * r
+			// hits the same wall in the same column as
+			// wall_distance * horizontal_r, in other words the
+			// intersection point is p + wall_distance * r,
+			// including for the z coordinate
+
 			i = project_pixel_onto_image_plane(w, h, x, y, c, d);
 			r = vec3_normalised(vec3_sub(p, i));
+			r = vec3_mul_scalar(horizontal_r.x / r.x, r);
+			// this makes sure that r.x == horizontal_r.x and
+			// r.y == horizontal_r.y (as mentioned above).
+			// since r points in the same x and y direction as
+			// original_r, original_r.x / r.x == original_r.y / r.y
+			// so it doesnt matter which one we take here
 
+			// we only need to compute the z coordinate of the
+			// intersection, not x and y since they stay the same
 			rc_res.position.z = p.z + r.z * wall_distance;
-			// printf("rc_res pos for x = %lu, y = %lu: (%f %f %f)\n", x, y, rc_res.position.x, rc_res.position.y, rc_res.position.z);
+
 			// we can leave the other values is rc_res as they dont
 			// change
 			draw(img, tex_atlas, &rc_res, do_shading, x, y);
@@ -246,6 +265,7 @@ void draw_textured_no_floor(image_t *img, tex_atlas_t *ta,
 	}
 }
  
+
 void tex_atlas_load(tex_atlas_t *tex_atlas, FILE *f, size_t nx, size_t ny) {
 	image_t img;
 	ppm_image_load(&img, f);

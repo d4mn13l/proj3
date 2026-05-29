@@ -38,7 +38,7 @@ image_t** ppm_image_split(image_t *src, size_t nx, size_t ny) {
 
 	size_t into_count = nx * ny;
 
-	image_t **into = malloc(into_count * sizeof(image_t));
+	image_t **into = malloc(into_count * sizeof(image_t*));
 
 	// this just loops over into, initialises the target images and loops
 	// over the pixels to copy them over from src
@@ -46,7 +46,7 @@ image_t** ppm_image_split(image_t *src, size_t nx, size_t ny) {
 	// ix/iy: x/y position of the current subimages
 	// px/py: x/y position of the current pixel
 	// idk if this formatting is better readable than indenting everything
-	// but it was too disgusting before to leave it
+	// but 5 levels of indentation is just disgusting to leave it
 	for (size_t iy = 0; iy < ny; iy++)
 	for (size_t ix = 0; ix < nx; ix++) {
 		size_t cur_img_i = ix + iy * nx;
