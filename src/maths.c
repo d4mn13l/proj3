@@ -31,3 +31,7 @@ double vec3_magnitude(vec3_t v) {
 vec3_t vec3_normalised(vec3_t v) {
 	return vec3_mul_scalar(1/vec3_magnitude(v), v);
 }
+
+bool is_approx_zero(double a) {
+	return fabs(a) < 0.0001;
+}

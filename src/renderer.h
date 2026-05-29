@@ -10,6 +10,11 @@
 
 #define CAMERA_OFFSET (vec3_t) {0,0,0.5}
 
+enum {
+	DRAW_FLAGS_EMPTY = 0,
+	DRAW_FLAG_DO_SHADING = 1,
+	DRAW_FLAG_RENDER_FLOOR_CEIL = 2,
+};
 
 enum {
 	DIR_X = 0,
@@ -17,6 +22,7 @@ enum {
 };
 
 typedef struct {
+	vec3_t ray_origin;
 	vec3_t ray_direction;
 	cell_t hit;
 	size_t cell_x, cell_y;
@@ -34,18 +40,16 @@ typedef struct {
 } tex_atlas_t;
 
 
-typedef size_t draw_flags_t;
-
 typedef void(*draw_function_t)(image_t*, tex_atlas_t*,  ray_cast_result_t*,
-                                bool do_shading, size_t px, size_t py);
+                                int flags, size_t px, size_t py);
 // responsible for drawing a pixel at (px, py) into the image
 
 
 // px, py: position in the image
 void draw_untextured(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
-		bool do_shading, size_t px, size_t py);
-void draw_textured_no_floor(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
-		bool do_shading, size_t px, size_t py);
+		int flags, size_t px, size_t py);
+void draw_textured(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
+		int flags, size_t px, size_t py);
 
 
 void tex_atlas_load(tex_atlas_t* tex_atlas, FILE *f, size_t nx, size_t ny);
@@ -54,5 +58,5 @@ void tex_atlas_load(tex_atlas_t* tex_atlas, FILE *f, size_t nx, size_t ny);
 // using draw_function
 void render(image_t *img, map_t *map, size_t w, size_t h, double px, double py,
 		double fov, double rotation, draw_function_t draw,
-		tex_atlas_t *tex_atlas, bool do_shading);
+		tex_atlas_t *tex_atlas, int draw_flags);
 #endif

@@ -40,10 +40,11 @@ int main(int argc, char *argv[]) {
 		image_t img;
 		ppm_image_init(&img, width, height);
 		render(&img, &map, width, height, px, py, fov, rotation,
-			draw_untextured, NULL, false);
+			draw_untextured, NULL, DRAW_FLAGS_EMPTY);
 		ppm_image_write(&img, f);
 		ppm_image_free(&img);
 	} else if (!strcmp(argv[2], "-T")) {
+		// TODO handle invalid arguments
 		size_t tex_count_x, tex_count_y, w, h;
 		sscanf(argv[4], "%lu", &tex_count_x);
 		sscanf(argv[5], "%lu", &tex_count_y);
@@ -54,8 +55,12 @@ int main(int argc, char *argv[]) {
 		double px = atof(argv[11]);
 		double py = atof(argv[12]);
 
-		bool do_shading = false;
-		if (argc > 13) do_shading = atoi(argv[13]);
+		int draw_flags = DRAW_FLAGS_EMPTY;
+		if (argc > 13 && atoi(argv[13]) == 1)
+			draw_flags |= DRAW_FLAG_DO_SHADING;
+
+		if (argc > 14 && atoi(argv[14]) == 1)
+			draw_flags |= DRAW_FLAG_RENDER_FLOOR_CEIL;
 
 		FILE *ta_file = fopen(argv[3], "r");
 		ASSERT_ALWAYS(ta_file != NULL, __LINE__, __FILE__);
@@ -66,7 +71,7 @@ int main(int argc, char *argv[]) {
 		image_t img;
 		ppm_image_init(&img, w, h);
 		render(&img, &map, w, h, px, py, fov, rotation,
-				draw_textured_no_floor, &ta, do_shading);
+				draw_textured, &ta, draw_flags);
 
 		FILE *out = fopen(argv[6], "w");
 		ASSERT_ALWAYS(out != NULL, __LINE__, __FILE__);

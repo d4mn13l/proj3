@@ -1,9 +1,12 @@
 #ifndef MATHS_H
 #define MATHS_H
 
+#include <stdbool.h>
 
 #define PI 3.14159265358979323846
 
+#define VEC3_SPLIT(v) v.x, v.y, v.z
+// helper for prinf-ing vec3s
 
 typedef struct {
 	double x, y, z;
@@ -19,5 +22,7 @@ vec3_t vec3_normalised(vec3_t v);
 double vec3_magnitude(vec3_t v);
 
 double deg_to_rad(double deg);
+
+bool is_approx_zero(double a);
 
 #endif

@@ -1,5 +1,6 @@
 #include "renderer.h"
 
+#include <bits/types/__FILE.h>
 #include <math.h>
 #include <stdbool.h>
 
@@ -80,6 +81,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 	res.cell_x = i.x < 0 ? (int) i.x - 1 : (int) i.x;
 	res.cell_y = i.y < 0 ? (int) i.y - 1 : (int) i.y;
 	res.ray_direction = r;
+	res.ray_origin = i;
 
 	while (map_is_in_bounds(map, res.cell_x, res.cell_y)) {
 		RENDER_DEBUG(printf("now with s=(%f %f %f), cell pos = (%d %d)"\
@@ -119,7 +121,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 
  void render(image_t *img, map_t *map, size_t w, size_t h, double px,
 		double py, double fov, double rotation, draw_function_t draw,
-		tex_atlas_t *tex_atlas, bool do_shading) {
+		tex_atlas_t *tex_atlas, int draw_flags) {
 	
 	ASSERT(0 < fov && fov < 180, __LINE__, __FILE__);
 	
@@ -197,17 +199,18 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 			// we only need to compute the z coordinate of the
 			// intersection, not x and y since they stay the same
 			rc_res.position.z = p.z + r.z * wall_distance;
+			rc_res.ray_direction.z = r.z;
 
 			// we can leave the other values is rc_res as they dont
 			// change
-			draw(img, tex_atlas, &rc_res, do_shading, x, y);
+			draw(img, tex_atlas, &rc_res, draw_flags, x, y);
 		}
 	}
 }
 
 
 void draw_untextured(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
-		bool do_shading, size_t px, size_t py) {
+		int flags, size_t px, size_t py) {
 	if (rc_res->hit == CELL_EMPTY || rc_res->position.z < 0.0001 ||
 			rc_res->position.z > 0.9999) {
 		img->pixels[px + py * img->w] = COLOUR_BLACK;
@@ -222,12 +225,49 @@ void draw_untextured(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
 	}
 }
 
-void draw_textured_no_floor(image_t *img, tex_atlas_t *ta,
-		ray_cast_result_t *rc_res, bool do_shading,
+void draw_textured(image_t *img, tex_atlas_t *ta,
+		ray_cast_result_t *rc_res, int flags,
 		size_t px, size_t py) {
+	// TODO this control flow is not very nice
 	if (rc_res->hit == CELL_EMPTY || rc_res->position.z < 0.0001 ||
 			rc_res->position.z > 0.9999) {
-		img->pixels[px + py * img->w] = COLOUR_BLACK;
+		if (!(flags & DRAW_FLAG_RENDER_FLOOR_CEIL)) {
+			img->pixels[px + py * img->w] = COLOUR_BLACK;
+			return;
+		}
+
+		if (py * 2 - 1 == img->h) {
+			// drawing to the middle row of an image with odd height
+			img->pixels[px + py * img->w] = COLOUR_BLACK;
+			return;
+		}
+
+		// first we need to actuall get the intersection with the floor
+		// / the ceiling
+
+		vec3_t fc_intersection = vec3_add(rc_res->ray_origin,
+			vec3_mul_scalar(
+				fabs(0.5 / rc_res->ray_direction.z),
+				rc_res->ray_direction));
+
+		// get the intersection inside the cell so in [0, 1)
+		double in_cell_x = fc_intersection.x - (int) fc_intersection.x;
+		if (in_cell_x < 0) in_cell_x += 1;
+		double in_cell_y = fc_intersection.y - (int) fc_intersection.y;
+		if (in_cell_y < 0) in_cell_y += 1;
+
+		size_t ty = (size_t) (in_cell_y * (double) ta->h);
+		size_t tx = (size_t) (in_cell_x * (double) ta->w);
+
+		ASSERT(ty < ta->h, __LINE__, __FILE__);
+		ASSERT(tx < ta->w, __LINE__, __FILE__);
+
+		size_t tex_index = is_approx_zero(fc_intersection.z) ? 0 : 1;
+
+		ASSERT(tex_index < ta->count, __LINE__, __FILE__);
+
+		img->pixels[px + py * img->w]=
+			ta->tex[tex_index]->pixels[tx + ty * ta->w];
 		return;
 	}
 	size_t tx, ty;
@@ -258,13 +298,13 @@ void draw_textured_no_floor(image_t *img, tex_atlas_t *ta,
 
 	*pixel = ta->tex[tex_index]->pixels[tx + ty * ta->w];
 
-	if (do_shading && rc_res->wall_orientation == DIR_X) {
+	if ((flags & DRAW_FLAG_DO_SHADING) && rc_res->wall_orientation == DIR_X) {
 		pixel->r = (pixel->r >> 1) & 0x7F;
 		pixel->g = (pixel->g >> 1) & 0x7F;
 		pixel->b = (pixel->b >> 1) & 0x7F;
 	}
 }
- 
+
 
 void tex_atlas_load(tex_atlas_t *tex_atlas, FILE *f, size_t nx, size_t ny) {
 	image_t img;
