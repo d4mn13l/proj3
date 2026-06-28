@@ -52,12 +52,14 @@ void draw_textured(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
 		int flags, size_t px, size_t py);
 
 
+
 void tex_atlas_load(tex_atlas_t* ta, FILE *f, size_t nx, size_t ny);
 void tex_atlas_free(tex_atlas_t* ta);
 
 
 // renders the map viewed from (px, py), with rotation and fov into img
 // using draw_function
+// expects rotation and fov in radians
 void render(image_t *img, map_t *map, double px, double py,
 		double fov, double rotation, draw_function_t draw,
 		tex_atlas_t *tex_atlas, int draw_flags);

@@ -25,12 +25,13 @@ vec3_t project_pixel_onto_image_plane(int w, int h, int x, int y, vec3_t c, vec3
 
 
 // i: vector origin
-// r: vector direction
+// r: vector direction (normalised)
 ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 	ASSERT(r.z == 0, __LINE__, __FILE__);
 	// this function should only be used for rays that have z = 0
+	ASSERT(is_approx_zero(vec3_magnitude(r) - 1), __LINE__, __FILE__);
+	// assert r is normalised
 
-	r = vec3_normalised(r);
 	int r_x_sign = r.x / fabs(r.x);
 	int r_y_sign = r.y / fabs(r.y);
 
@@ -119,13 +120,8 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
  void render(image_t *img, map_t *map, double px,
 		double py, double fov, double rotation, draw_function_t draw,
 		tex_atlas_t *tex_atlas, int draw_flags) {
+	ASSERT(0 < fov && fov < PI, __LINE__, __FILE__);
 	
-	ASSERT(0 < fov && fov < 180, __LINE__, __FILE__);
-	
-	// convert fov and rotation to radians
-	fov = deg_to_rad(fov);
-	rotation = deg_to_rad(rotation);
-
 	RENDER_DEBUG(printf("w: %d, h: %d, px: %f, py: %f fov: %f, rot: %f\n",
 			w,h,px,py,fov,rotation));
 
@@ -145,12 +141,26 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 			"direction: (%f %f %f), priciple point: (%f %f %f)\n",
 			p.x, p.y, p.z, f, d.x, d.y, d.z, c.x, c.y, c.z));
 
+	const vec3_t i_top_left =
+		project_pixel_onto_image_plane(img->w, img->h, 0, 0, c, d);
+	const vec3_t i_x_delta = vec3_sub(
+		project_pixel_onto_image_plane(img->w, img->h, 1, 0, c, d),
+		i_top_left);
+	const vec3_t i_y_delta = vec3_sub(
+		project_pixel_onto_image_plane(img->w, img->h, 0, 1, c, d),
+		i_top_left);
+	// the distance between the projected pixels is always the same, so
+	// we dont have to recompute it every time
+
+	// projection of the currently drawn pixel
+	vec3_t i = i_top_left;
+
 	for (size_t x = 0; x < img->w; x++) {
 		// first cast a ray parallel to the floor from z=0
 		// this checks if there is even a wall on that column at all
 
-		vec3_t i = project_pixel_onto_image_plane(img->w, img->h, x, 0, c, d);
-		i.z = 0.5;
+		i = vec3_add(i_top_left, vec3_mul_scalar(x, i_x_delta));
+
 		vec3_t horizontal_r = vec3_sub(p, i);
 		horizontal_r.z = 0;
 		horizontal_r = vec3_normalised(horizontal_r);
@@ -184,8 +194,9 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 			// intersection point is p + wall_distance * r,
 			// including for the z coordinate
 
-			i = project_pixel_onto_image_plane(img->w, img->h, x, y, c, d);
-			r = vec3_normalised(vec3_sub(p, i));
+			i = vec3_add(i, i_y_delta);
+			r = vec3_sub(p, i);
+			// no need to normalise this here (see next comment)
 			r = vec3_mul_scalar(horizontal_r.x / r.x, r);
 			// this makes sure that r.x == horizontal_r.x and
 			// r.y == horizontal_r.y (as mentioned above).

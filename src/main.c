@@ -2,6 +2,7 @@
 #include <string.h>
 
 #include "map.h"
+#include "maths.h"
 #include "ppm.h"
 #include "renderer.h"
 #include "util.h"
@@ -37,8 +38,9 @@ int main(int argc, char *argv[]) {
 	
 		image_t img;
 		ppm_image_init(&img, width, height);
-		render(&img, &map, px, py, fov, rotation,
-			draw_untextured, NULL, DRAW_FLAGS_EMPTY);
+		render(&img, &map, px, py, deg_to_rad(fov),
+			deg_to_rad(rotation), draw_untextured, NULL,
+			DRAW_FLAGS_EMPTY);
 		FILE *f = fopen(argv[3], "w");
 		ASSERT_ALWAYS(f != NULL, __LINE__, __FILE__);
 		ppm_image_write(&img, f);
@@ -72,8 +74,8 @@ int main(int argc, char *argv[]) {
 
 		image_t img;
 		ppm_image_init(&img, w, h);
-		render(&img, &map, px, py, fov, rotation,
-				draw_textured, &ta, draw_flags);
+		render(&img, &map, px, py, deg_to_rad(fov),
+			deg_to_rad(rotation), draw_textured, &ta, draw_flags);
 
 		FILE *out = fopen(argv[6], "w");
 		ASSERT_ALWAYS(out != NULL, __LINE__, __FILE__);
@@ -106,8 +108,9 @@ int main(int argc, char *argv[]) {
 		double px, py, rotation;
 		while (true) {
 			scanf("%lf %lf %lf", &px, &py, &rotation);
-			render(&img, &map, px, py, fov, rotation, draw_textured,
-			        &ta, draw_flags);
+			render(&img, &map, px, py, deg_to_rad(fov),
+				deg_to_rad(rotation), draw_textured, &ta,
+				draw_flags);
 			ppm_image_write_pixels(&img, stdout);
 			fflush(stdout);
 		}
