@@ -13,13 +13,15 @@ typedef int8_t cell_t;
 enum {
 	CELL_EMPTY = -1,
 	// indeces from 0 to 9 are used for textured walls
-	CELL_UNTEXTURED_WALL = 10,
+	CELL_UNSPECIFIED_TEX = 2,
+	// except for this one, walls with non-digit symbols should be treated
+	// as having tex index 2
 };
 
 
 typedef struct {
-	unsigned int w, h;
-	unsigned int player_start_x, player_start_y;
+	size_t w, h;
+	size_t player_start_x, player_start_y;
 	cell_t *cells;
 } map_t;
 
@@ -32,8 +34,8 @@ void map_print_debug_info(map_t *map);
 void map_render_minimap(map_t *map, char *file_name);
 
 
-bool map_is_in_bounds(map_t *map, int x, int y);
-cell_t map_get_cell(map_t *map, int x, int y);
+bool map_is_in_bounds(map_t *map, size_t x, size_t y);
+cell_t map_get_cell(map_t *map, size_t x, size_t y);
 // this does not perform any bound checks
 
 #endif

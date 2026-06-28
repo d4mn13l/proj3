@@ -35,3 +35,4 @@ vec3_t vec3_normalised(vec3_t v) {
 bool is_approx_zero(double a) {
 	return fabs(a) < 0.0001;
 }
+

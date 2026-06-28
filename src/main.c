@@ -35,13 +35,15 @@ int main(int argc, char *argv[]) {
 		double px = atof(argv[8]);
 		double py = atof(argv[9]);
 	
-		FILE *f = fopen(argv[3], "w");
-		ASSERT_ALWAYS(f != NULL, __LINE__, __FILE__);
 		image_t img;
 		ppm_image_init(&img, width, height);
-		render(&img, &map, width, height, px, py, fov, rotation,
+		render(&img, &map, px, py, fov, rotation,
 			draw_untextured, NULL, DRAW_FLAGS_EMPTY);
+		FILE *f = fopen(argv[3], "w");
+		ASSERT_ALWAYS(f != NULL, __LINE__, __FILE__);
 		ppm_image_write(&img, f);
+		
+		fclose(f);
 		ppm_image_free(&img);
 	} else if (!strcmp(argv[2], "-T")) {
 		// TODO handle invalid arguments
@@ -70,49 +72,49 @@ int main(int argc, char *argv[]) {
 
 		image_t img;
 		ppm_image_init(&img, w, h);
-		render(&img, &map, w, h, px, py, fov, rotation,
+		render(&img, &map, px, py, fov, rotation,
 				draw_textured, &ta, draw_flags);
 
 		FILE *out = fopen(argv[6], "w");
 		ASSERT_ALWAYS(out != NULL, __LINE__, __FILE__);
 		ppm_image_write(&img, out);
+
 		fclose(out);
 		ppm_image_free(&img);
+		tex_atlas_free(&ta);
 	}
-	
-	#ifdef DEBUG
-	else if (!strcmp(argv[2], "-P")) {
-		image_t img;
-		ppm_image_load(&img, fopen(argv[3], "r"));
-		FILE *out = fopen(argv[4], "w");
-		ASSERT(out != NULL, __LINE__, __FILE__);
-		ppm_image_write(&img, out);
+	else if (!strcmp(argv[2], "-C")) {
+		ASSERT_ALWAYS(argc == 9, __LINE__, __FILE__);
 
-		ppm_image_free(&img);
-		fclose(out);
-	}
-	else if (!strcmp(argv[2], "-S")) {
-		image_t img;
-		ppm_image_load(&img, fopen(argv[3], "r"));
-		size_t nx = atoi(argv[5]);
-		size_t ny = atoi(argv[6]);
-		image_t **split = ppm_image_split(&img, nx, ny);
+		size_t tex_count_x, tex_count_y, w, h;
+		sscanf(argv[4], "%lu", &tex_count_x);
+		sscanf(argv[5], "%lu", &tex_count_y);
+		sscanf(argv[6], "%lu", &w);
+		sscanf(argv[7], "%lu", &h);
+		double fov = atof(argv[8]);
 
-		int out_file_name_length = strlen(argv[4]);
-		for (size_t i = 0; i < nx * ny; i++) {
-			// overwrite the last character before the extension
-			// with the index
-			// this is only for debugging so now one cares
-			argv[4][out_file_name_length - 5] = i + 48;
-			FILE *f = fopen(argv[4], "w");
-			ppm_image_write(split[i], f);
-			ppm_image_free(split[i]);
-			free(split[i]);
+		FILE *ta_file = fopen(argv[3], "r");
+		ASSERT_ALWAYS(ta_file != NULL, __LINE__, __FILE__);
+		tex_atlas_t ta;
+		tex_atlas_load(&ta, ta_file, tex_count_x, tex_count_y);
+		fclose(ta_file);
+
+		int draw_flags = DRAW_FLAG_DO_SHADING | DRAW_FLAG_RENDER_FLOOR_CEIL;
+
+		image_t img;
+		ppm_image_init(&img, w, h);
+		double px, py, rotation;
+		while (true) {
+			scanf("%lf %lf %lf", &px, &py, &rotation);
+			render(&img, &map, px, py, fov, rotation, draw_textured,
+			        &ta, draw_flags);
+			ppm_image_write_pixels(&img, stdout);
+			fflush(stdout);
 		}
+
 		ppm_image_free(&img);
+		tex_atlas_free(&ta);
 	}
-	#endif
-	
 	else {
 		printf("unknown option %s", argv[2]);
 	}

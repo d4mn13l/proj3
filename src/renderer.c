@@ -35,7 +35,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 	int r_y_sign = r.y / fabs(r.y);
 
 	RENDER_DEBUG(printf("casting ray from %f %f %f in dir (%f %f %f)\n",
-	       i.x, i.y, i.z, r.x, r.y, r.z));
+		i.x, i.y, i.z, r.x, r.y, r.z));
 
 	// travel distance for a full unit in x/y direction
 	// called s_w and s_h in the project description
@@ -45,14 +45,11 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 	//  never be the direction of the next step
 	RENDER_DEBUG(printf("t: %f %f %f\n", t.x, t.y, t.z));
 
-	vec3_t in_cell_pos = {i.x - (int) i.x, i.y - (int) i.y, 0};
-	// the position inside of the cell, so only the decimal part of the
-	// position we want something in the range [0, 1), however this
-	// calculation  can result in negative values if the original position
-	// is also negative, but always in the range (-1, 1)
-	if (in_cell_pos.x < 0) in_cell_pos.x += 1;
-	if (in_cell_pos.y < 0) in_cell_pos.y += 1;
-	// so this brings the value in the desired range
+	vec3_t in_cell_pos = {fmod1(i.x), fmod1(i.y), 0};
+	// the position inside of the cell, so only the fractional part of the
+	// position (or fractional part + 1 for numbers < 0), since we want
+	// something in the range [0, 1)
+
 
 	// initialize s (current position in the raycasting algorithm)
 	vec3_t s = {0,0,0};
@@ -119,7 +116,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 }
 
 
- void render(image_t *img, map_t *map, size_t w, size_t h, double px,
+ void render(image_t *img, map_t *map, double px,
 		double py, double fov, double rotation, draw_function_t draw,
 		tex_atlas_t *tex_atlas, int draw_flags) {
 	
@@ -139,7 +136,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 	vec3_t d = {cos(rotation), sin(rotation), 0};
 
 	// focal distance
-	double f = w / (2 * tan(fov/2));
+	double f = img->w / (2 * tan(fov/2));
 
 	// principle point of the image
 	vec3_t c = vec3_sub(p, vec3_mul_scalar(f, d));
@@ -148,11 +145,11 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 			"direction: (%f %f %f), priciple point: (%f %f %f)\n",
 			p.x, p.y, p.z, f, d.x, d.y, d.z, c.x, c.y, c.z));
 
-	for (size_t x = 0; x < w; x++) {
+	for (size_t x = 0; x < img->w; x++) {
 		// first cast a ray parallel to the floor from z=0
 		// this checks if there is even a wall on that column at all
 
-		vec3_t i = project_pixel_onto_image_plane(w, h, x, 0, c, d);
+		vec3_t i = project_pixel_onto_image_plane(img->w, img->h, x, 0, c, d);
 		i.z = 0.5;
 		vec3_t horizontal_r = vec3_sub(p, i);
 		horizontal_r.z = 0;
@@ -175,7 +172,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 		// now loop over all rows (y pixels) in this column
 		vec3_t r = horizontal_r;
 		// new direction for the z-angled rays
-		for (size_t y = 0; y < h; y++) {
+		for (size_t y = 0; y < img->h; y++) {
 			// we dont have to cast another ray here.
 			// the idea here is that we represent r as
 			// {horizontal_r.x, horizontal_r.y, some z}
@@ -187,7 +184,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 			// intersection point is p + wall_distance * r,
 			// including for the z coordinate
 
-			i = project_pixel_onto_image_plane(w, h, x, y, c, d);
+			i = project_pixel_onto_image_plane(img->w, img->h, x, y, c, d);
 			r = vec3_normalised(vec3_sub(p, i));
 			r = vec3_mul_scalar(horizontal_r.x / r.x, r);
 			// this makes sure that r.x == horizontal_r.x and
@@ -251,10 +248,8 @@ void draw_textured(image_t *img, tex_atlas_t *ta,
 				rc_res->ray_direction));
 
 		// get the intersection inside the cell so in [0, 1)
-		double in_cell_x = fc_intersection.x - (int) fc_intersection.x;
-		if (in_cell_x < 0) in_cell_x += 1;
-		double in_cell_y = fc_intersection.y - (int) fc_intersection.y;
-		if (in_cell_y < 0) in_cell_y += 1;
+		double in_cell_x = fmod1(fc_intersection.x);
+		double in_cell_y = fmod1(fc_intersection.y);
 
 		size_t ty = (size_t) (in_cell_y * (double) ta->h);
 		size_t tx = (size_t) (in_cell_x * (double) ta->w);
@@ -266,7 +261,7 @@ void draw_textured(image_t *img, tex_atlas_t *ta,
 
 		ASSERT(tex_index < ta->count, __LINE__, __FILE__);
 
-		img->pixels[px + py * img->w]=
+		img->pixels[px + py * img->w] =
 			ta->tex[tex_index]->pixels[tx + ty * ta->w];
 		return;
 	}
@@ -289,8 +284,6 @@ void draw_textured(image_t *img, tex_atlas_t *ta,
 
 	tx = (ta->w - 1) - tx;
 	size_t tex_index = rc_res->hit;
-	if (tex_index == CELL_UNTEXTURED_WALL) tex_index = 2;
-	// as specified in the project document
 
 	ASSERT(tex_index < ta->count, __LINE__, __FILE__);
 
@@ -319,4 +312,13 @@ void tex_atlas_load(tex_atlas_t *tex_atlas, FILE *f, size_t nx, size_t ny) {
 	tex_atlas->w = tex_atlas->tex[0]->w;
 	tex_atlas->h = tex_atlas->tex[0]->h;
 	tex_atlas->count = nx * ny;
+}
+
+void tex_atlas_free(tex_atlas_t *ta) {
+	for (size_t i = 0; i < ta->nx * ta->ny; i++) {
+		ppm_image_free(ta->tex[i]);
+		free(ta->tex[i]);
+	}
+	free(ta->tex);
+	ta->tex = NULL;
 }

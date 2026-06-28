@@ -25,6 +25,7 @@ image_t *ppm_image_new(size_t w, size_t h) {
 
 void ppm_image_free(image_t *img) {
 	free(img->pixels);
+	img->pixels = NULL;
 }
 
 
@@ -94,7 +95,7 @@ void ppm_image_load(image_t *img, FILE *f) {
 		}
 		c = fgetc(f);
 		ASSERT_ALWAYS(!feof(f), __LINE__, __FILE__ \
-			        " (found eof while parsing ppm header)");
+			" (found eof while parsing ppm header)");
 		if (isspace(c)) {
 			// skip ahead to next non-whitespace character
 			read_elements_count++;
@@ -135,5 +136,9 @@ void ppm_image_load(image_t *img, FILE *f) {
 void ppm_image_write(image_t *img, FILE *f) {
 	ppm_write_header(f, img->w, img->h);
 	// dump the pixels to the file
+	fwrite(img->pixels, sizeof(colour_t), img->h * img->w, f);
+}
+
+void ppm_image_write_pixels(image_t *img, FILE *f) {
 	fwrite(img->pixels, sizeof(colour_t), img->h * img->w, f);
 }

@@ -11,7 +11,7 @@
 // this doesnt free map->cells if it already exists, bc how would you check
 // for that
 void map_load(map_t *map, FILE *f) {
-	fscanf(f, "%d %d", &map->w, &map->h);
+	fscanf(f, "%lu %lu", &map->w, &map->h);
 
 	map->cells = malloc(map->w * map->h * sizeof(cell_t));
 	ASSERT(map->cells != NULL, __LINE__, __FILE__);
@@ -46,7 +46,7 @@ void map_load(map_t *map, FILE *f) {
 			if (0 <= tex && tex < 10) {
 				map->cells[i] = tex;
 			} else {
-				map->cells[i] = CELL_UNTEXTURED_WALL;
+				map->cells[i] = CELL_UNSPECIFIED_TEX;
 			}
 		}
 
@@ -75,8 +75,8 @@ void map_print_debug_info(map_t *map) {
 		}
 	}
 	
-	printf("Map dimensions: %d x %d\n" \
-		"Start point: (%d, %d)\n" \
+	printf("Map dimensions: %lu x %lu\n" \
+		"Start point: (%lu, %lu)\n" \
 		"Total wall cells: %u\n",
 		map->w, map->h, map->player_start_x, map->player_start_y, wall_count);
 }
@@ -105,11 +105,11 @@ void map_render_minimap(map_t *map, char *file_name) {
 }
 
 
-bool map_is_in_bounds(map_t *map, int x, int y) {
+bool map_is_in_bounds(map_t *map, size_t x, size_t y) {
 	return 0 <= x && x < map->w && 0 <= y && y < map->h;
 }
 
 
-cell_t map_get_cell(map_t *map, int x, int y) {
+cell_t map_get_cell(map_t *map, size_t x, size_t y) {
 	return map->cells[x + y * map->w];
 }

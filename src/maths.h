@@ -23,6 +23,12 @@ double vec3_magnitude(vec3_t v);
 
 double deg_to_rad(double deg);
 
+static inline double fmod1(double d) {
+	double res = d - (int) d;
+	if (res < 0) return res + 1;
+	return res;
+}
+
 bool is_approx_zero(double a);
 
 #endif
