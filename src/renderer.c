@@ -1,14 +1,17 @@
 #include "renderer.h"
 
+#include <3ds.h>
 #include <math.h>
 #include <stdbool.h>
 
+#include "3ds/svc.h"
 #include "map.h"
 #include "maths.h"
 #include "ppm.h"
 #include "util.h"
 
-
+void draw_textured(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
+	shading_function_t shade, void *shade_params, size_t px, size_t py);
 
 // projects a pixel (x, y) from the output image onto the virtual camera plane 
 // fov and view_direction in rad
@@ -73,7 +76,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 	// TODO does this initial value make sense?
 
 	ray_cast_result_t res;
-	res.hit = CELL_EMPTY;
+	res.hit_cell_tex = CELL_EMPTY;
 	// this remains unchanged if the ray doesnt hit anything
 	res.cell_x = i.x < 0 ? (int) i.x - 1 : (int) i.x;
 	res.cell_y = i.y < 0 ? (int) i.y - 1 : (int) i.y;
@@ -84,10 +87,10 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 		RENDER_DEBUG(printf("now with s=(%f %f %f), cell pos = (%d %d)"\
 				" and last_stepped_x = %b\n", s.x, s.y, s.z,
 				res.cell_x, res.cell_y, last_stepped_x));
-		cell_t hit_cell = map_get_cell(map, res.cell_x, res.cell_y);
+		tex_t hit_cell = map_get_cell(map, res.cell_x, res.cell_y)->tex;
 
 		if (hit_cell != CELL_EMPTY) {
-			res.hit = hit_cell;
+			res.hit_cell_tex = hit_cell;
 			break;
 		}
 		
@@ -116,9 +119,9 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 }
 
 
- void render(image_t *img, map_t *map, float px,
-		float py, float fov, float rotation, draw_function_t draw,
-		tex_atlas_t *tex_atlas, int draw_flags) {
+ void render(image_t *img, map_t *map, float px, float py, float fov,
+		float rotation, tex_atlas_t *tex_atlas,
+		shading_function_t shade, void *shade_params) {
 	ASSERT(0 < fov && fov < PI, __LINE__, __FILE__);
 	
 	RENDER_DEBUG(printf("w: %d, h: %d, px: %f, py: %f fov: %f, rot: %f\n",
@@ -216,40 +219,18 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 
 			// we can leave the other values is rc_res as they dont
 			// change
-			draw(img, tex_atlas, &rc_res, draw_flags, x, y);
+			draw_textured(img, tex_atlas, &rc_res, shade,
+				shade_params, x, y);
 		}
 	}
 }
 
 
-void draw_untextured(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
-		int flags, size_t px, size_t py) {
-	if (rc_res->hit == CELL_EMPTY || rc_res->position.z < 0.0001 ||
+void draw_textured(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
+	shading_function_t shade, void *shade_params, size_t px, size_t py) {
+	if (rc_res->hit_cell_tex == CELL_EMPTY || rc_res->position.z < 0.0001 ||
 			rc_res->position.z > 0.9999) {
-		ppm_image_set_pixel(img, px, py, COLOUR_BLACK);
-		return;
-	}
-	switch (rc_res->wall_orientation) {
-		case DIR_X:
-			ppm_image_set_pixel(img, px, py, COLOUR_GREEN);
-			break;
-		case DIR_Y:
-			ppm_image_set_pixel(img, px, py, COLOUR_RED);
-			break;
-	}
-}
-
-void draw_textured(image_t *img, tex_atlas_t *ta,
-		ray_cast_result_t *rc_res, int flags,
-		size_t px, size_t py) {
-	// TODO this control flow is not very nice
-	if (rc_res->hit == CELL_EMPTY || rc_res->position.z < 0.0001 ||
-			rc_res->position.z > 0.9999) {
-		if (!(flags & DRAW_FLAG_RENDER_FLOOR_CEIL)) {
-			ppm_image_set_pixel(img, px, py, COLOUR_BLACK);
-			return;
-		}
-
+		// drawing floor / ceil
 		if (py * 2 - 1 == img->h) {
 			// drawing to the middle row of an image with odd height
 			ppm_image_set_pixel(img, px, py, COLOUR_BLACK);
@@ -278,42 +259,86 @@ void draw_textured(image_t *img, tex_atlas_t *ta,
 
 		ASSERT(tex_index < ta->count, __LINE__, __FILE__);
 
-		ppm_image_set_pixel(img, px, py,
-			*ppm_image_get_pixel(ta->tex[tex_index], tx, ty));
-		return;
-	}
+		colour_t *pixel = ppm_image_get_pixel(img, px, py);
+		*pixel = *ppm_image_get_pixel(ta->tex[tex_index], tx, ty);
+		shade(px, py, pixel, SHADE_FLAG_FLOOR_CEIL, shade_params);
+	} else {
 	
-	// drawing wall:
-	size_t tx, ty;
-	//texture coordinates
-	ty = (ta->h - 1) - (size_t) (rc_res->position.z * (float) ta->h);
+		// drawing wall
+		size_t tx, ty;
+		//texture coordinates
+		ty = (ta->h - 1) - (size_t) (rc_res->position.z * (float) ta->h);
 
-	switch (rc_res->wall_orientation) {
-	case DIR_X:
-		tx = (size_t) ((rc_res->position.x - (int) rc_res->position.x) * (float) ta->w);
-		if (rc_res->ray_direction.y < 0) tx = (ta->w - 1) - tx;
-		break;
-	case DIR_Y:
-		tx = (size_t) ((rc_res->position.y - (int) rc_res->position.y) * (float) ta->w);
-		if (rc_res->ray_direction.x > 0) tx = (ta->w - 1) - tx;
-		break;
-	default:
-		UNREACHABLE(__LINE__, __FILE__, "invalid wall_orientaion");
+		switch (rc_res->wall_orientation) {
+		case DIR_X:
+			tx = (size_t) ((rc_res->position.x
+				- (int) rc_res->position.x) * (float) ta->w);
+			if (rc_res->ray_direction.y < 0) tx = (ta->w - 1) - tx;
+			break;
+		case DIR_Y:
+			tx = (size_t) ((rc_res->position.y
+				 - (int) rc_res->position.y) * (float) ta->w);
+			if (rc_res->ray_direction.x > 0) tx = (ta->w - 1) - tx;
+			break;
+		default:
+			UNREACHABLE(__LINE__, __FILE__, "invalid wall_orientaion");
+		}
+
+		tx = (ta->w - 1) - tx;
+		size_t tex_index = rc_res->hit_cell_tex;
+
+		ASSERT(tex_index < ta->count, __LINE__, __FILE__);
+
+		colour_t *pixel = ppm_image_get_pixel(img, px, py);
+
+		*pixel = *ppm_image_get_pixel(ta->tex[tex_index], tx, ty);
+
+		shade(px, py, pixel, rc_res->wall_orientation == DIR_X ?
+			SHADE_FLAG_WALL_X : SHADE_FLAG_WALL_Y, shade_params);
+	}
+}
+
+
+void shade_default(size_t x, size_t y, colour_t *pixel, int flags, void *params) {
+	if (flags & SHADE_FLAG_WALL_X) {
+		pixel->r = (pixel->r >> 1) & 0x7f;
+		pixel->g = (pixel->g >> 1) & 0x7f;
+		pixel->b = (pixel->b >> 1) & 0x7f;
+	}
+}
+
+
+void shade_dark(size_t x, size_t y, colour_t *pixel, int flags, void *by) {
+	pixel->r = pixel->r / *(uint8_t *) by;
+	pixel->g = pixel->g / *(uint8_t *) by;
+	pixel->b = pixel->b / *(uint8_t *) by;
+}
+
+
+void shade_blink(size_t x, size_t y, colour_t *pixel, int flags, void *params) {
+	static float last_switch_time = 0;
+	static bool on = true;
+
+	if (x == 0 && y == 0) {
+		// this only runs for the first pixel so we can do the frame
+		// setup even though its a bit hacky
+		if (on && *(float *) params
+				> last_switch_time + SHADE_BLINK_ON_TIME) {
+			on = false;
+			last_switch_time = *(float *) params;
+		} else if (!on && *(float *) params
+				> last_switch_time + SHADE_BLINK_OFF_TIME) {
+			on = true;
+			last_switch_time = *(float *) params;
+		}
 	}
 
-	tx = (ta->w - 1) - tx;
-	size_t tex_index = rc_res->hit;
-
-	ASSERT(tex_index < ta->count, __LINE__, __FILE__);
-
-	colour_t *pixel = ppm_image_get_pixel(img, px, py);
-
-	*pixel = *ppm_image_get_pixel(ta->tex[tex_index], tx, ty);
-
-	if ((flags & DRAW_FLAG_DO_SHADING) && rc_res->wall_orientation == DIR_X) {
-		pixel->r = (pixel->r >> 1) & 0x7F;
-		pixel->g = (pixel->g >> 1) & 0x7F;
-		pixel->b = (pixel->b >> 1) & 0x7F;
+	if (on) {
+		pixel->r = pixel->r / 4;
+		pixel->g = pixel->g / 4;
+		pixel->b = pixel->b / 4;
+	} else {
+		*pixel = COLOUR_BLACK;
 	}
 }
 
@@ -341,3 +366,23 @@ void tex_atlas_free(tex_atlas_t *ta) {
 	free(ta->tex);
 	ta->tex = NULL;
 }
+
+
+// dont think ill need this but keep it just in case
+/* void draw_untextured(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
+		size_t px, size_t py) {
+	if (rc_res->hit == CELL_EMPTY || rc_res->position.z < 0.0001 ||
+			rc_res->position.z > 0.9999) {
+		ppm_image_set_pixel(img, px, py, COLOUR_BLACK);
+		return;
+	}
+	switch (rc_res->wall_orientation) {
+		case DIR_X:
+			ppm_image_set_pixel(img, px, py, COLOUR_GREEN);
+			break;
+		case DIR_Y:
+			ppm_image_set_pixel(img, px, py, COLOUR_RED);
+			break;
+	}
+} */
+

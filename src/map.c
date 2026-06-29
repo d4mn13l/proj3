@@ -8,8 +8,12 @@
 #include "util.h"
 
 
-// this doesnt free map->cells if it already exists, bc how would you check
-// for that
+
+void map_init_cell(map_t *map, size_t i, tex_t tex) {
+	map->cells[i].tex = tex;
+	memset(&map->cells[i].props, 0, sizeof(prop_t*) * MAX_PROPS_PER_CELL);
+}
+
 void map_load(map_t *map, FILE *f) {
 	fscanf(f, SIZE_T_FORMAT" "SIZE_T_FORMAT, &map->w, &map->h);
 
@@ -38,17 +42,17 @@ void map_load(map_t *map, FILE *f) {
 		}
 		
 		if (c == CELL_CHAR_EMPTY) {
-			map->cells[i] = CELL_EMPTY;
+			map_init_cell(map, i, CELL_EMPTY);
 		} else if (c == CELL_CHAR_PLAYER_START) {
-			map->cells[i] = CELL_EMPTY;
+			map_init_cell(map, i, CELL_EMPTY);
 			map->player_start_x = i % map->w;
 			map->player_start_y = i / map->w;
 		} else {
 			int tex = c - '0';
 			if (0 <= tex && tex < 10) {
-				map->cells[i] = tex;
+				map_init_cell(map, i, tex);
 			} else {
-				map->cells[i] = CELL_UNSPECIFIED_TEX;
+				map_init_cell(map, i, CELL_UNSPECIFIED_TEX);
 			}
 		}
 
@@ -72,7 +76,7 @@ void map_print_debug_info(map_t *map) {
 	size_t cell_count = map->w * map->h;
 	
 	for (size_t i = 0; i < cell_count; i++) {
-		if (map->cells[i] != CELL_EMPTY) {
+		if (map->cells[i].tex != CELL_EMPTY) {
 			wall_count++;
 		}
 	}
@@ -96,7 +100,7 @@ void map_render_minimap(map_t *map, char *file_name) {
 	for (size_t i = 0; i < cell_count; i++) {
 		if (i == player_start_i) {
 			ppm_write_colour(f, COLOUR_GREEN);
-		} else if (map->cells[i] == CELL_EMPTY) {
+		} else if (map->cells[i].tex == CELL_EMPTY) {
 			ppm_write_colour(f, COLOUR_WHITE);
 		} else {
 			ppm_write_colour(f, COLOUR_BLACK);
@@ -112,6 +116,6 @@ bool map_is_in_bounds(map_t *map, size_t x, size_t y) {
 }
 
 
-cell_t map_get_cell(map_t *map, size_t x, size_t y) {
-	return map->cells[x + y * map->w];
+cell_t *map_get_cell(map_t *map, size_t x, size_t y) {
+	return &map->cells[x + y * map->w];
 }

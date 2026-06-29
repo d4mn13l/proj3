@@ -29,3 +29,6 @@ __pycache__/
 *$py.class
 
 *.pdf
+
+*.smdh
+*.elf

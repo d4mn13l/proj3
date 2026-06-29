@@ -11,20 +11,22 @@
 #define CAMERA_OFFSET (vec3_t) {0,0,0.5}
 
 enum {
-	DRAW_FLAGS_EMPTY = 0,
-	DRAW_FLAG_DO_SHADING = 1,
-	DRAW_FLAG_RENDER_FLOOR_CEIL = 2,
-};
-
-enum {
 	DIR_X = 0,
 	DIR_Y = 1,
+};
+
+
+enum {
+	SHADE_FLAG_WALL_X = 1,
+	SHADE_FLAG_WALL_Y = 2,
+	SHADE_FLAG_FLOOR_CEIL = 4,
+	SHADE_FLAG_PROP = 8,
 };
 
 typedef struct {
 	vec3_t ray_origin;
 	vec3_t ray_direction;
-	cell_t hit;
+	tex_t hit_cell_tex;
 	size_t cell_x, cell_y;
 	vec3_t position;
 	int wall_orientation;
@@ -40,17 +42,18 @@ typedef struct {
 } tex_atlas_t;
 
 
-typedef void(*draw_function_t)(image_t*, tex_atlas_t*,  ray_cast_result_t*,
-		int flags, size_t px, size_t py);
-// responsible for drawing a pixel at (px, py) into the image
+typedef void(*shading_function_t)(size_t x, size_t y, colour_t*, int flags,
+        void *params);
 
 
-// px, py: position in the image
-void draw_untextured(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
-		int flags, size_t px, size_t py);
-void draw_textured(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
-		int flags, size_t px, size_t py);
-
+void shade_default(size_t x, size_t y, colour_t *pixel, int flags, void *params);
+// doesnt use params
+void shade_dark(size_t x, size_t y, colour_t *pixel, int flags, void *by);
+// by to be uint8_t* and darkens every pixel by it
+void shade_blink(size_t x, size_t y, colour_t *pixel, int flags, void *params);
+// expects params to be the current time as float*
+#define SHADE_BLINK_ON_TIME 0.4
+#define SHADE_BLINK_OFF_TIME 0.7
 
 
 void tex_atlas_load(tex_atlas_t* ta, FILE *f, size_t nx, size_t ny);
@@ -60,7 +63,7 @@ void tex_atlas_free(tex_atlas_t* ta);
 // renders the map viewed from (px, py), with rotation and fov into img
 // using draw_function
 // expects rotation and fov in radians
-void render(image_t *img, map_t *map, float px, float py,
-		float fov, float rotation, draw_function_t draw,
-		tex_atlas_t *tex_atlas, int draw_flags);
+void render(image_t *img, map_t *map, float px, float py, float fov,
+		float rotation, tex_atlas_t *tex_atlas,
+		shading_function_t shade, void *shade_params);
 #endif

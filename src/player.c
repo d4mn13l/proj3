@@ -53,8 +53,8 @@ void player_move(player_t *player, vec3_t dir, map_t *map, float delta) {
 	vec3_t new_pos = vec3_add(player->pos, by);
 
 	if (map_is_in_bounds(map, (int) new_pos.x, (int) new_pos.y)
-			&& map_get_cell(map, (int) new_pos.x, (int) new_pos.y)
-				== CELL_EMPTY)
+		&& map_get_cell(map, (int) new_pos.x, (int) new_pos.y)->tex
+			== CELL_EMPTY)
 		{
 		player->pos = new_pos;
 	}

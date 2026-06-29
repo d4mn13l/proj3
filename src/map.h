@@ -5,10 +5,16 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+
 #define CELL_CHAR_EMPTY ' '
 #define CELL_CHAR_PLAYER_START 'S'
 
-typedef int8_t cell_t;
+#define MAX_PROPS_PER_CELL 4
+
+typedef struct prop_t prop_t;
+// defined in renderer.h
+
+typedef int8_t tex_t;
 
 enum {
 	CELL_EMPTY = -1,
@@ -17,6 +23,11 @@ enum {
 	// except for this one, walls with non-digit symbols should be treated
 	// as having tex index 2
 };
+
+typedef struct {
+	tex_t tex;
+	prop_t *props[MAX_PROPS_PER_CELL];
+} cell_t;
 
 
 typedef struct {
@@ -35,7 +46,7 @@ void map_render_minimap(map_t *map, char *file_name);
 
 
 bool map_is_in_bounds(map_t *map, size_t x, size_t y);
-cell_t map_get_cell(map_t *map, size_t x, size_t y);
+cell_t *map_get_cell(map_t *map, size_t x, size_t y);
 // this does not perform any bound checks
 
 #endif
