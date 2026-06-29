@@ -23,24 +23,6 @@ Thumbs.db
 # for decompression proofs
 extracted.proof
 
-# image files
-*.ppm
-*.pgm
-*.png
-*.jpg
-*.jpeg
-*.bmp
-*.PPM
-*.PGM
-*.PNG
-*.JPG
-*.JPEG
-*.BMP
-*.path
-*.statistics
-*.broken
-
-
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
