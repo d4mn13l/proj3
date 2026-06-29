@@ -37,9 +37,7 @@ image_t** ppm_image_split(image_t *src, size_t nx, size_t ny) {
 	// make sure that src->w is a multiple of w and src->h is multiple of h
 	// so that the image can actually be split up equally
 
-	size_t into_count = nx * ny;
-
-	image_t **into = malloc(into_count * sizeof(image_t*));
+	image_t **into = malloc(sizeof(image_t*) * nx * ny);
 
 	// this just loops over into, initialises the target images and loops
 	// over the pixels to copy them over from src
@@ -47,29 +45,26 @@ image_t** ppm_image_split(image_t *src, size_t nx, size_t ny) {
 	// ix/iy: x/y position of the current subimages
 	// px/py: x/y position of the current pixel
 	// idk if this formatting is better readable than indenting everything
-	// but 5 levels of indentation is just disgusting to leave it
+	// but 5 levels of indentation is just too disgusting to leave it
 	for (size_t iy = 0; iy < ny; iy++)
 	for (size_t ix = 0; ix < nx; ix++) {
 		size_t cur_img_i = ix + iy * nx;
 		into[cur_img_i] = ppm_image_new(into_w, into_h);
-		size_t into_pix_i = 0;
 
-		for (size_t py = iy * into_h; py < (iy+1) * into_h; py++)
-		for (size_t px = ix * into_w; px < (ix+1) * into_w; px++) {
-			into[cur_img_i]->pixels[into_pix_i] =
-				src->pixels[px + py * src->w];
-			into_pix_i++;
+		for (size_t py = 0; py < into_h; py++)
+		for (size_t px = 0; px < into_w; px++) {
+			ppm_image_set_pixel(into[cur_img_i], px, py,
+				*ppm_image_get_pixel(src,
+					ix * into_w + px, iy * into_h + py));
 		}
-		
 	}
-
 
 	return into;
 }
 
 
 void ppm_write_header(FILE *f, size_t w, size_t h) {
-	fprintf(f, "P6\n%lu %lu\n%d\n", w, h, PPM_MAX_COLOUR);
+	fprintf(f, "P6\n"SIZE_T_FORMAT" "SIZE_T_FORMAT"\n%d\n", w, h, PPM_MAX_COLOUR);
 }
 
 void ppm_write_colour(FILE *f, colour_t c) {
@@ -118,7 +113,8 @@ void ppm_image_load(image_t *img, FILE *f) {
 	UNREACHABLE(__LINE__, __FILE__, "failed to parse ppm header (too long)");
 
 	header_copy_success:
-	int r = sscanf(header_buf, "%2s %lu %lu %d", format, &w, &h, &max_colour);
+	int r = sscanf(header_buf, "%2s "SIZE_T_FORMAT" "SIZE_T_FORMAT" %d",
+		format, &w, &h, &max_colour);
 	ASSERT_ALWAYS(r == 4, __LINE__, __FILE__" (failed to parse ppm header)");
 	ASSERT_ALWAYS(!strcmp(format, PPM_FORMAT), __LINE__, __FILE__);
 	ASSERT_ALWAYS(max_colour <= PPM_MAX_COLOUR, __LINE__, __FILE__);
@@ -126,19 +122,54 @@ void ppm_image_load(image_t *img, FILE *f) {
 	// initialise the image
 	ppm_image_init(img, w, h);
 
-	// the pixels in the file are in binary form so we can load it like this
-	fread(img->pixels, sizeof(colour_t), w * h, f);
+	colour_t *buf = malloc(sizeof(colour_t) * w * h);
+	fread(buf, sizeof(colour_t), w * h, f);
 
-	ASSERT_ALWAYS(fgetc(f) == EOF, __LINE__, __FILE__ \
-			" (when loading an image file, expected eof)");
+	for (int px = 0; px < w; px++) {
+		for (int py = 0; py < h; py++) {
+			const char *raw = (char*) &buf[px + py * w];
+			ppm_image_set_pixel(img, px, py,
+				(colour_t) {raw[2], raw[1], raw[0]});
+			// the colours are ordered differently in the ppm
+			// representation and the 3ds internal one
+		}
+	}
+
+	free(buf);
+	
+	// TODO working way to assert this:
+	// ASSERT_ALWAYS(fgetc(f) == EOF_REAL, __LINE__, __FILE__ \
+	// 	" (when loading an image file, expected eof)");
 }
+
+
+void ppm_image_set_pixel(image_t *img, size_t x, size_t y, colour_t to) {
+	ASSERT(x < img->w, __LINE__, __FILE__);
+	ASSERT(y < img->h, __LINE__, __FILE__);
+	img->pixels[x * img->h + (img->h - 1 - y)] = to;
+	// the 3ds framebuffer grows from bottom left y first
+	// in other words it is rotated 90 degrees counter clockwise
+}
+
+
+colour_t* ppm_image_get_pixel(image_t *img, size_t x, size_t y) {
+	ASSERT(x < img->w, __LINE__, __FILE__);
+	ASSERT(y < img->h, __LINE__, __FILE__);
+	return &img->pixels[x * img->h + (img->h - 1 - y)];
+}
+
+
 
 void ppm_image_write(image_t *img, FILE *f) {
 	ppm_write_header(f, img->w, img->h);
-	// dump the pixels to the file
-	fwrite(img->pixels, sizeof(colour_t), img->h * img->w, f);
+	ppm_image_write_pixels(img, f);
 }
 
 void ppm_image_write_pixels(image_t *img, FILE *f) {
-	fwrite(img->pixels, sizeof(colour_t), img->h * img->w, f);
+	for (size_t y = 0; y < img->h; y++) {
+		for (size_t x = 0; x < img->w; x++) {
+			colour_t* c = ppm_image_get_pixel(img, x, y);
+			fprintf(f, "%c%c%c", c->r, c->g, c->b);
+		}
+	}
 }

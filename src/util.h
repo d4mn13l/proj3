@@ -6,6 +6,14 @@
 
 //#define DEBUG
 
+#ifdef __3DS__
+#define SIZE_T_FORMAT "%u"
+#define EOF_REAL 255
+// 255 seems to be the EOF value on the 3ds, but the EOF macro isnt properly set
+#else
+#define SIZE_T_FORMAT "%lu"
+#define EOF_REAL EOF
+#endif
 
 #ifdef DEBUG
 #define ASSERT(cond, line, file) do {                      \

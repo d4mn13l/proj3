@@ -1,6 +1,5 @@
 #include "renderer.h"
 
-#include <bits/types/__FILE.h>
 #include <math.h>
 #include <stdbool.h>
 
@@ -198,11 +197,17 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 			r = vec3_sub(p, i);
 			// no need to normalise this here (see next comment)
 			r = vec3_mul_scalar(horizontal_r.x / r.x, r);
+			// (this comment is probably incorrcect)
 			// this makes sure that r.x == horizontal_r.x and
 			// r.y == horizontal_r.y (as mentioned above).
 			// since r points in the same x and y direction as
 			// original_r, original_r.x / r.x == original_r.y / r.y
 			// so it doesnt matter which one we take here
+
+			// FIXME the magnitude of r in not constant (even with
+			// normalising) its only like 1.04 so its not too bad
+			// i think its because r.z != 0 and horizontal_r.z == 0
+			// is there a wayy to precompute some factor?
 
 			// we only need to compute the z coordinate of the
 			// intersection, not x and y since they stay the same
@@ -221,15 +226,16 @@ void draw_untextured(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
 		int flags, size_t px, size_t py) {
 	if (rc_res->hit == CELL_EMPTY || rc_res->position.z < 0.0001 ||
 			rc_res->position.z > 0.9999) {
-		img->pixels[px + py * img->w] = COLOUR_BLACK;
+		ppm_image_set_pixel(img, px, py, COLOUR_BLACK);
 		return;
 	}
 	switch (rc_res->wall_orientation) {
 		case DIR_X:
-			img->pixels[px + py * img->w] = COLOUR_GREEN;
-			return;
+			ppm_image_set_pixel(img, px, py, COLOUR_GREEN);
+			break;
 		case DIR_Y:
-			img->pixels[px + py * img->w] = COLOUR_RED;
+			ppm_image_set_pixel(img, px, py, COLOUR_RED);
+			break;
 	}
 }
 
@@ -240,13 +246,13 @@ void draw_textured(image_t *img, tex_atlas_t *ta,
 	if (rc_res->hit == CELL_EMPTY || rc_res->position.z < 0.0001 ||
 			rc_res->position.z > 0.9999) {
 		if (!(flags & DRAW_FLAG_RENDER_FLOOR_CEIL)) {
-			img->pixels[px + py * img->w] = COLOUR_BLACK;
+			ppm_image_set_pixel(img, px, py, COLOUR_BLACK);
 			return;
 		}
 
 		if (py * 2 - 1 == img->h) {
 			// drawing to the middle row of an image with odd height
-			img->pixels[px + py * img->w] = COLOUR_BLACK;
+			ppm_image_set_pixel(img, px, py, COLOUR_BLACK);
 			return;
 		}
 
@@ -272,10 +278,12 @@ void draw_textured(image_t *img, tex_atlas_t *ta,
 
 		ASSERT(tex_index < ta->count, __LINE__, __FILE__);
 
-		img->pixels[px + py * img->w] =
-			ta->tex[tex_index]->pixels[tx + ty * ta->w];
+		ppm_image_set_pixel(img, px, py,
+			*ppm_image_get_pixel(ta->tex[tex_index], tx, ty));
 		return;
 	}
+	
+	// drawing wall:
 	size_t tx, ty;
 	//texture coordinates
 	ty = (ta->h - 1) - (size_t) (rc_res->position.z * (double) ta->h);
@@ -298,9 +306,9 @@ void draw_textured(image_t *img, tex_atlas_t *ta,
 
 	ASSERT(tex_index < ta->count, __LINE__, __FILE__);
 
-	colour_t *pixel = &img->pixels[px + py * img->w];
+	colour_t *pixel = ppm_image_get_pixel(img, px, py);
 
-	*pixel = ta->tex[tex_index]->pixels[tx + ty * ta->w];
+	*pixel = *ppm_image_get_pixel(ta->tex[tex_index], tx, ty);
 
 	if ((flags & DRAW_FLAG_DO_SHADING) && rc_res->wall_orientation == DIR_X) {
 		pixel->r = (pixel->r >> 1) & 0x7F;

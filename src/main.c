@@ -1,3 +1,5 @@
+#include <3ds.h>
+
 #include <stdio.h>
 #include <string.h>
 
@@ -7,11 +9,14 @@
 #include "renderer.h"
 #include "util.h"
 
+#define MAP_FILE_PATH "romfs:/map.txt"
 
-int main(int argc, char *argv[]) {
-	ASSERT_ALWAYS(argc >= 2, __LINE__, __FILE__);
+int main() {
+	romfsInit();
+	gfxInitDefault();
+	consoleInit(GFX_BOTTOM, NULL);
 
-	FILE *map_file = fopen(argv[1], "r");
+	FILE *map_file = fopen(MAP_FILE_PATH, "r");
 	ASSERT_ALWAYS(map_file != NULL, __LINE__, __FILE__);
 
 	map_t map;
@@ -19,110 +24,62 @@ int main(int argc, char *argv[]) {
 
 	fclose(map_file);
 	map_file = NULL;
-	
-	if (!strcmp(argv[2], "-I")) {
-		map_print_debug_info(&map);
-	} else if (!strcmp(argv[2], "-M")) {
-		ASSERT_ALWAYS(argc == 4, __LINE__, __FILE__);
-		map_render_minimap(&map, argv[3]);
-	} else if (!strcmp(argv[2], "-R")) {
-		ASSERT_ALWAYS(argc == 10, __LINE__, __FILE__);
-		
-		size_t width, height;
-		sscanf(argv[4], "%lu", &width);
-		sscanf(argv[5], "%lu", &height);
-		double fov = atof(argv[6]);
-		double rotation = atof(argv[7]);
-		double px = atof(argv[8]);
-		double py = atof(argv[9]);
-	
-		image_t img;
-		ppm_image_init(&img, width, height);
-		render(&img, &map, px, py, deg_to_rad(fov),
-			deg_to_rad(rotation), draw_untextured, NULL,
-			DRAW_FLAGS_EMPTY);
-		FILE *f = fopen(argv[3], "w");
-		ASSERT_ALWAYS(f != NULL, __LINE__, __FILE__);
-		ppm_image_write(&img, f);
-		
-		fclose(f);
-		ppm_image_free(&img);
-	} else if (!strcmp(argv[2], "-T")) {
-		// TODO handle invalid arguments
-		size_t tex_count_x, tex_count_y, w, h;
-		sscanf(argv[4], "%lu", &tex_count_x);
-		sscanf(argv[5], "%lu", &tex_count_y);
-		sscanf(argv[7], "%lu", &w);
-		sscanf(argv[8], "%lu", &h);
-		double fov = atof(argv[9]);
-		double rotation = atof(argv[10]);
-		double px = atof(argv[11]);
-		double py = atof(argv[12]);
 
-		int draw_flags = DRAW_FLAGS_EMPTY;
-		if (argc > 13 && atoi(argv[13]) == 1)
-			draw_flags |= DRAW_FLAG_DO_SHADING;
+	map_print_debug_info(&map);
 
-		if (argc > 14 && atoi(argv[14]) == 1)
-			draw_flags |= DRAW_FLAG_RENDER_FLOOR_CEIL;
+	image_t img;
+	ppm_image_init(&img, 400, 240);
+	// size of the top screen of the 3ds
 
-		FILE *ta_file = fopen(argv[3], "r");
-		ASSERT_ALWAYS(ta_file != NULL, __LINE__, __FILE__);
-		tex_atlas_t ta;
-		tex_atlas_load(&ta, ta_file, tex_count_x, tex_count_y);
-		fclose(ta_file);
+	// FILE *img_f = fopen("romfs:/3ds.ppm", "r");
+	// ASSERT_ALWAYS(img_f != NULL, __LINE__, __FILE__);
+	// ppm_image_load(&img, img_f);
+	// fclose(img_f);
 
-		image_t img;
-		ppm_image_init(&img, w, h);
-		render(&img, &map, px, py, deg_to_rad(fov),
-			deg_to_rad(rotation), draw_textured, &ta, draw_flags);
+	tex_atlas_t ta;
+	FILE *tex_f = fopen("romfs:/wolftextures.ppm", "r");
+	ASSERT_ALWAYS(tex_f != NULL, __LINE__, __FILE__);
+	tex_atlas_load(&ta, tex_f, 8, 1);
+	fclose(tex_f);
 
-		FILE *out = fopen(argv[6], "w");
-		ASSERT_ALWAYS(out != NULL, __LINE__, __FILE__);
-		ppm_image_write(&img, out);
+	render(&img, &map, 0.5, 1.5, deg_to_rad(60), deg_to_rad(0),
+		draw_textured, &ta, DRAW_FLAG_RENDER_FLOOR_CEIL);
+		// draw_untextured, NULL, DRAW_FLAGS_EMPTY);
 
-		fclose(out);
-		ppm_image_free(&img);
-		tex_atlas_free(&ta);
-	}
-	else if (!strcmp(argv[2], "-C")) {
-		ASSERT_ALWAYS(argc == 9, __LINE__, __FILE__);
+	FILE *out_f = fopen("sdmc:/out.ppm", "w");
+	ASSERT_ALWAYS(out_f != NULL, __LINE__, __FILE__);
+	// ppm_image_write(&img, out_f);
+	ppm_image_write(ta.tex[0], out_f);
+	fclose(out_f);
 
-		size_t tex_count_x, tex_count_y, w, h;
-		sscanf(argv[4], "%lu", &tex_count_x);
-		sscanf(argv[5], "%lu", &tex_count_y);
-		sscanf(argv[6], "%lu", &w);
-		sscanf(argv[7], "%lu", &h);
-		double fov = atof(argv[8]);
-
-		FILE *ta_file = fopen(argv[3], "r");
-		ASSERT_ALWAYS(ta_file != NULL, __LINE__, __FILE__);
-		tex_atlas_t ta;
-		tex_atlas_load(&ta, ta_file, tex_count_x, tex_count_y);
-		fclose(ta_file);
-
-		int draw_flags = DRAW_FLAG_DO_SHADING | DRAW_FLAG_RENDER_FLOOR_CEIL;
-
-		image_t img;
-		ppm_image_init(&img, w, h);
-		double px, py, rotation;
-		while (true) {
-			scanf("%lf %lf %lf", &px, &py, &rotation);
-			render(&img, &map, px, py, deg_to_rad(fov),
-				deg_to_rad(rotation), draw_textured, &ta,
-				draw_flags);
-			ppm_image_write_pixels(&img, stdout);
-			fflush(stdout);
+	gfxSetDoubleBuffering(GFX_TOP, false);
+	u8* framebuffer = gfxGetFramebuffer(GFX_TOP, GFX_LEFT, NULL, NULL);
+	// printf("sizeof(*fb) = %d\n", sizeof(*framebuffer));
+	memcpy(framebuffer, img.pixels, sizeof(colour_t) * img.w * img.h);
+	// memset(framebuffer, 255, 6769);
+	/* for (int i = 0; i < 60000; i++) {
+		if (i % 3 == 1) {
+			framebuffer[i] = 255;
 		}
+	} */
+	
+	while (aptMainLoop()) {
+		hidScanInput();
+		u32 keys_down = hidKeysDown();
+		if (keys_down & KEY_START) break;
+		if (keys_down & KEY_A) puts(":3");
 
-		ppm_image_free(&img);
-		tex_atlas_free(&ta);
+		gfxFlushBuffers();
+		gfxSwapBuffers();
+		gspWaitForVBlank();
+		
 	}
-	else {
-		printf("unknown option %s", argv[2]);
-	}
-
+	
+	
 	map_free(&map);
+
+	romfsExit();
+	gfxExit();
 
 	return 0;
 }

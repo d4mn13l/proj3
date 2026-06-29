@@ -11,7 +11,7 @@
 // this doesnt free map->cells if it already exists, bc how would you check
 // for that
 void map_load(map_t *map, FILE *f) {
-	fscanf(f, "%lu %lu", &map->w, &map->h);
+	fscanf(f, SIZE_T_FORMAT" "SIZE_T_FORMAT, &map->w, &map->h);
 
 	map->cells = malloc(map->w * map->h * sizeof(cell_t));
 	ASSERT(map->cells != NULL, __LINE__, __FILE__);
@@ -22,7 +22,9 @@ void map_load(map_t *map, FILE *f) {
 	char c;
 	size_t i = 0;
 
-	while ((c = fgetc(f)) != EOF) {
+	while ((c = fgetc(f)) != EOF_REAL) {
+
+		
 		ASSERT(i <= map->w * map->h, __LINE__,
 			__FILE__" (expected end of map file, found more map)");
 
@@ -75,8 +77,8 @@ void map_print_debug_info(map_t *map) {
 		}
 	}
 	
-	printf("Map dimensions: %lu x %lu\n" \
-		"Start point: (%lu, %lu)\n" \
+	printf("Map dimensions: "SIZE_T_FORMAT" x "SIZE_T_FORMAT"\n" \
+		"Start point: ("SIZE_T_FORMAT", "SIZE_T_FORMAT")\n" \
 		"Total wall cells: %u\n",
 		map->w, map->h, map->player_start_x, map->player_start_y, wall_count);
 }

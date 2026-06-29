@@ -8,24 +8,30 @@
 #define PPM_FORMAT "P6"
 
 typedef struct {
-	uint8_t r,g,b;
+	uint8_t b, g, r;
+	// the 3ds' represents colours as BGR8
 } colour_t;
 
 typedef struct {
 	size_t w, h;
 	colour_t *pixels;
+	// dont use this directly bc the order is different from what the rest
+	// of the code uses, use ppm_image_[get,set]_pixel instead
 } image_t;
 
 #define COLOUR_WHITE (colour_t) {PPM_MAX_COLOUR, PPM_MAX_COLOUR, PPM_MAX_COLOUR}
-#define COLOUR_RED (colour_t) {PPM_MAX_COLOUR, 0, 0}
+#define COLOUR_BLU (colour_t) {PPM_MAX_COLOUR, 0, 0}
 #define COLOUR_GREEN (colour_t) {0, PPM_MAX_COLOUR, 0}
-#define COLOUR_BLUE (colour_t) {0, 0, PPM_MAX_COLOUR}
+#define COLOUR_RED (colour_t) {0, 0, PPM_MAX_COLOUR}
 #define COLOUR_BLACK (colour_t) {0, 0, 0}
 
 
 image_t *ppm_image_new(size_t w, size_t h);
 void ppm_image_init(image_t *img, size_t w, size_t h);
 void ppm_image_free(image_t *img);
+
+void ppm_image_set_pixel(image_t *img, size_t x, size_t y, colour_t to);
+colour_t* ppm_image_get_pixel(image_t *img, size_t x, size_t y);
 
 image_t **ppm_image_split(image_t *src, size_t nx, size_t ny);
 // splits the image into nx * ny images  of equal size and returns them as an
