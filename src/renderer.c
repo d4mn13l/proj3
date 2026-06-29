@@ -17,9 +17,9 @@
 // d: direction vector of the camera
 // c: principle point of the image
 vec3_t project_pixel_onto_image_plane(int w, int h, int x, int y, vec3_t c, vec3_t d) {
-	return (vec3_t) {c.x + (x - (double) w/2 + 0.5) * d.y,
-		c.y - (x - (double) w/2 + 0.5) * d.x,
-		y - (double) h/2 + 1};
+	return (vec3_t) {c.x + (x - (float) w/2 + 0.5) * d.y,
+		c.y - (x - (float) w/2 + 0.5) * d.x,
+		y - (float) h/2 + 1};
 }
 
 
@@ -116,8 +116,8 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 }
 
 
- void render(image_t *img, map_t *map, double px,
-		double py, double fov, double rotation, draw_function_t draw,
+ void render(image_t *img, map_t *map, float px,
+		float py, float fov, float rotation, draw_function_t draw,
 		tex_atlas_t *tex_atlas, int draw_flags) {
 	ASSERT(0 < fov && fov < PI, __LINE__, __FILE__);
 	
@@ -131,7 +131,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 	vec3_t d = {cos(rotation), sin(rotation), 0};
 
 	// focal distance
-	double f = img->w / (2 * tan(fov/2));
+	float f = img->w / (2 * tan(fov/2));
 
 	// principle point of the image
 	vec3_t c = vec3_sub(p, vec3_mul_scalar(f, d));
@@ -174,7 +174,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 		// NOTE if i change this to i for some reason, remember to also
 		// change it in the next line (definition of wall_distance)
 
-		double wall_distance = vec3_magnitude(
+		float wall_distance = vec3_magnitude(
 		 vec3_sub(rc_res.position, p));
 		RENDER_DEBUG(printf("wall distance: %f\n", wall_distance));
 
@@ -265,11 +265,11 @@ void draw_textured(image_t *img, tex_atlas_t *ta,
 				rc_res->ray_direction));
 
 		// get the intersection inside the cell so in [0, 1)
-		double in_cell_x = fmod1(fc_intersection.x);
-		double in_cell_y = fmod1(fc_intersection.y);
+		float in_cell_x = fmod1(fc_intersection.x);
+		float in_cell_y = fmod1(fc_intersection.y);
 
-		size_t ty = (size_t) (in_cell_y * (double) ta->h);
-		size_t tx = (size_t) (in_cell_x * (double) ta->w);
+		size_t ty = (size_t) (in_cell_y * (float) ta->h);
+		size_t tx = (size_t) (in_cell_x * (float) ta->w);
 
 		ASSERT(ty < ta->h, __LINE__, __FILE__);
 		ASSERT(tx < ta->w, __LINE__, __FILE__);
@@ -286,15 +286,15 @@ void draw_textured(image_t *img, tex_atlas_t *ta,
 	// drawing wall:
 	size_t tx, ty;
 	//texture coordinates
-	ty = (ta->h - 1) - (size_t) (rc_res->position.z * (double) ta->h);
+	ty = (ta->h - 1) - (size_t) (rc_res->position.z * (float) ta->h);
 
 	switch (rc_res->wall_orientation) {
 	case DIR_X:
-		tx = (size_t) ((rc_res->position.x - (int) rc_res->position.x) * (double) ta->w);
+		tx = (size_t) ((rc_res->position.x - (int) rc_res->position.x) * (float) ta->w);
 		if (rc_res->ray_direction.y < 0) tx = (ta->w - 1) - tx;
 		break;
 	case DIR_Y:
-		tx = (size_t) ((rc_res->position.y - (int) rc_res->position.y) * (double) ta->w);
+		tx = (size_t) ((rc_res->position.y - (int) rc_res->position.y) * (float) ta->w);
 		if (rc_res->ray_direction.x > 0) tx = (ta->w - 1) - tx;
 		break;
 	default:

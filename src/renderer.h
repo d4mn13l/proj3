@@ -60,7 +60,7 @@ void tex_atlas_free(tex_atlas_t* ta);
 // renders the map viewed from (px, py), with rotation and fov into img
 // using draw_function
 // expects rotation and fov in radians
-void render(image_t *img, map_t *map, double px, double py,
-		double fov, double rotation, draw_function_t draw,
+void render(image_t *img, map_t *map, float px, float py,
+		float fov, float rotation, draw_function_t draw,
 		tex_atlas_t *tex_atlas, int draw_flags);
 #endif
