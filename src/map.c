@@ -41,9 +41,9 @@ void map_load(map_t *map, FILE *f) {
 		}
 
 		if (c == CELL_CHAR_EMPTY) {
-			cell_init(&map->cells[i], CELL_EMPTY);
+			cell_init(&map->cells[i], CELL_TEX_EMPTY);
 		} else if (c == CELL_CHAR_PLAYER_START) {
-			cell_init(&map->cells[i], CELL_EMPTY);
+			cell_init(&map->cells[i], CELL_TEX_EMPTY);
 			map->player_start_x = i % map->w;
 			map->player_start_y = i / map->w;
 		} else {
@@ -51,7 +51,7 @@ void map_load(map_t *map, FILE *f) {
 			if (0 <= tex && tex < 10) {
 				cell_init(&map->cells[i], tex);
 			} else {
-				cell_init(&map->cells[i], CELL_UNSPECIFIED_TEX);
+				cell_init(&map->cells[i], CELL_TEX_UNSPECIFIED);
 			}
 		}
 
@@ -87,6 +87,7 @@ void map_load(map_t *map, FILE *f) {
 		ASSERT_ALWAYS_MSG(res == 4, "failed to parse interactable in map file");
 		for (int i = 0; i < PROP_DATA_COUNT; i++) {
 			res = fscanf(f, "%hhu", &data[i]);
+			printf("scanned data[%d] = %d\n", i, data[i]);
 			ASSERT_ALWAYS_MSG(res == 1, "missing data in interactable definition in map file");
 		}
 		map_add_interactable(map, x, y, tex, interactable_type, data);
@@ -107,12 +108,13 @@ int map_add_prop(map_t *map, float x, float y, tex_t tex) {
 	cell_t *cell = map_get_cell(map, cx, cy);
 
 	for (size_t i = 0; i < MAX_PROPS_PER_CELL; i++) {
-		if (cell->props[i].tex != 0) continue;
+		prop_t *prop = &cell->props[i];
+		if (prop->tex != 0) continue;
 			// using tex to see if there is a prop at that location
 			// should be fine because tex 0 is the ceiling tex
-		cell->props[i].pos = (vec3_t) {x, y, CAMERA_HEIGHT};
-		cell->props[i].width = 0.5; // TODO implement this
-		cell->props[i].tex = tex;
+		prop->pos = (vec3_t) {x, y, CAMERA_HEIGHT};
+		prop->width = 0.5; // TODO implement this
+		prop->tex = tex;
 		return EXIT_SUCCESS;
 	}
 
@@ -121,9 +123,6 @@ int map_add_prop(map_t *map, float x, float y, tex_t tex) {
 
 int map_add_interactable(map_t *map, float x, float y, tex_t tex, u8 type,
 		u8 *data) {
-
-	printf("adding interactable at %f %f\n", x, y);
-
 	// duplicated from map_add_prop (good practice)
 	size_t cx = (int) x;
 	size_t cy = (int) y;
@@ -131,15 +130,16 @@ int map_add_interactable(map_t *map, float x, float y, tex_t tex, u8 type,
 	cell_t *cell = map_get_cell(map, cx, cy);
 
 	for (size_t i = 0; i < MAX_PROPS_PER_CELL; i++) {
-		if (cell->props[i].tex != 0) continue;
+		prop_t *prop = &cell->props[i];
+		if (prop->tex != 0) continue;
 			// using tex to see if there is a prop at that location
 			// should be fine because tex 0 is the ceiling tex
-		cell->props[i].pos = (vec3_t) {x, y, CAMERA_HEIGHT};
-		cell->props[i].width = 0.5; // TODO implement this
-		cell->props[i].tex = tex;
-		cell->props[i].interactable_type = type;
-		for (int i = 0; i < PROP_DATA_COUNT; i++) {
-			cell->props[i].data[i] = data[i];
+		prop->pos = (vec3_t) {x, y, CAMERA_HEIGHT};
+		prop->width = 0.5; // TODO implement this
+		prop->tex = tex;
+		prop->interactable_type = type;
+		for (int ci = 0; ci < PROP_DATA_COUNT; ci++) {
+			prop->data[ci] = data[ci];
 		}
 		return EXIT_SUCCESS;
 	}
@@ -174,7 +174,7 @@ void map_print_debug_info(map_t *map) {
 	size_t cell_count = map->w * map->h;
 	
 	for (size_t i = 0; i < cell_count; i++) {
-		if (map->cells[i].tex != CELL_EMPTY) {
+		if (map->cells[i].tex != CELL_TEX_EMPTY) {
 			wall_count++;
 		}
 	}
@@ -198,7 +198,7 @@ void map_render_minimap(map_t *map, char *file_name) {
 	for (size_t i = 0; i < cell_count; i++) {
 		if (i == player_start_i) {
 			ppm_write_colour(f, COLOUR_GREEN);
-		} else if (map->cells[i].tex == CELL_EMPTY) {
+		} else if (map->cells[i].tex == CELL_TEX_EMPTY) {
 			ppm_write_colour(f, COLOUR_WHITE);
 		} else {
 			ppm_write_colour(f, COLOUR_BLACK);

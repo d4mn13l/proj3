@@ -80,7 +80,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 	// TODO does this initial value make sense?
 
 	ray_cast_result_t res;
-	res.hit_cell_tex = CELL_EMPTY;
+	res.hit_cell_tex = CELL_TEX_EMPTY;
 	// this remains unchanged if the ray doesnt hit anything
 	res.cell_x = i.x < 0 ? (int) i.x - 1 : (int) i.x;
 	res.cell_y = i.y < 0 ? (int) i.y - 1 : (int) i.y;
@@ -148,7 +148,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 		}
 		
 		
-		if (hit_cell->tex != CELL_EMPTY) {
+		if (hit_cell->tex != CELL_TEX_EMPTY) {
 			res.hit_cell_tex = hit_cell->tex;
 			break;
 		}
@@ -179,7 +179,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 	// implemented this can be calculated once per row in cast_ray instead
 	// of being calculated for every pixel in draw_pixel
 	// TODO are the textures now flipped?
-	if (res.hit_cell_tex != CELL_EMPTY) {
+	if (res.hit_cell_tex != CELL_TEX_EMPTY) {
 		switch (res.wall_orientation) {
 		case DIR_X:
 			res.tex_pos_x = (TEX_DIMENSIONS - 1) -
@@ -356,7 +356,7 @@ void draw_pixel(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
 	}
 
 	
-	if (rc_res->hit_cell_tex == CELL_EMPTY || rc_res->pos.z < 0.0001 ||
+	if (rc_res->hit_cell_tex == CELL_TEX_EMPTY || rc_res->pos.z < 0.0001 ||
 			rc_res->pos.z > 0.9999) {
 		// drawing floor / ceil
 		if (py * 2 - 1 == img->h) {

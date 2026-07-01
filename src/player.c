@@ -19,29 +19,30 @@ void player_init(player_t *player, map_t *map) {
 }
 
 
-void player_handle_input(player_t *player, map_t *map, u32 keys, float delta) {
+void player_handle_input(player_t *player, map_t *map, u32 keys_held,
+        	u32 keys_pressed, float delta) {
 	vec3_t dir = (vec3_t) {0, 0, 0};
-	if (keys & KEY_FORWARD) {
+	if (keys_held & KEY_FORWARD) {
 		dir = vec3_add(dir, DIR_FORWARD);
 	}
-	if (keys & KEY_RIGHT) {
+	if (keys_held & KEY_RIGHT) {
 		dir = vec3_add(dir, DIR_RIGHT);
 	}
-	if (keys & KEY_BACK) {
+	if (keys_held & KEY_BACK) {
 		dir = vec3_add(dir, DIR_BACKWARD);
 	}
-	if (keys & KEY_LEFT) {
+	if (keys_held & KEY_LEFT) {
 		dir = vec3_add(dir, DIR_LEFT);
 	}
 	
-	if (keys & KEY_TURN_LEFT) {
+	if (keys_held & KEY_TURN_LEFT) {
 		player_rotate(player, -ROTATE_SPEED * delta);
 	}
-	if (keys & KEY_TURN_RIGHT) {
+	if (keys_held & KEY_TURN_RIGHT) {
 		player_rotate(player, ROTATE_SPEED * delta);
 	}
 
-	if (keys & KEY_INTERACT) {
+	if (keys_pressed & KEY_INTERACT) {
 		prop_t *interactable =
 			map_get_interactable(map, player->pos.x, player->pos.y);
 		if (interactable != NULL) {
@@ -64,7 +65,7 @@ void player_move(player_t *player, vec3_t dir, map_t *map, float delta) {
 
 	if (map_is_in_bounds(map, (int) new_pos.x, (int) new_pos.y)
 		&& map_get_cell(map, (int) new_pos.x, (int) new_pos.y)->tex
-			== CELL_EMPTY)
+			== CELL_TEX_EMPTY)
 		{
 		player->pos = new_pos;
 	}

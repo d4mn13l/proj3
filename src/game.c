@@ -3,10 +3,6 @@
 #include <3ds.h>
 #include <stdlib.h>
 
-#include "3ds/console.h"
-#include "3ds/gfx.h"
-#include "3ds/services/gspgpu.h"
-#include "3ds/svc.h"
 #include "map.h"
 #include "text.h"
 #include "maths.h"
@@ -15,6 +11,7 @@
 #include "keymap.h"
 #include "shared.h"
 #include "util.h"
+
 
 
 int game_tick_play() {
@@ -27,7 +24,9 @@ int game_tick_play() {
 	if (keys_down & KEY_START) return EXIT_FAILURE;
 
 	u32 keys_held = hidKeysHeld();
-	player_handle_input(g_game.player, g_game.map, keys_held, g_delta);
+	u32 keys_pressed = hidKeysDown();
+	player_handle_input(g_game.player, g_game.map, keys_held, keys_pressed,
+	        g_delta);
 
 	gfxFlushBuffers();
 	gfxSwapBuffers();
@@ -59,14 +58,13 @@ int game_tick_text() {
 	gfxScreenSwapBuffers(GFX_BOTTOM, false);
 	// gspWaitForVBlank();
 	
-
 	if (c == '\0') {
 		puts("\n");
 		game_set_state(GAME_STATE_PLAYING, NULL);
 	} else {
 		g_game.state_args = (char *)g_game.state_args + 1;
 	}
-
+	
 	hidScanInput();
 	u32 keys_held = hidKeysHeld();
 	if (keys_held & KEY_SKIP_TEXT) {
@@ -87,6 +85,19 @@ void game_interact(prop_t *prop) {
 		return;
 	case INTERACTABLE_TYPE_LORE:
 		game_set_state(GAME_STATE_TEXT, (void *) text[prop->data[0]]);
+		break;
+	case INTERACTABLE_TYPE_DOOR_SWITCH:
+		printf("door at %d %d %d", prop->data[0], prop->data[1], prop->data[2]);
+		cell_t *door =
+			map_get_cell(g_game.map, prop->data[0], prop->data[1]);
+		if (door->tex == CELL_TEX_EMPTY) {
+			puts("closed door");
+			door->tex = CELL_TEX_DOOR;
+		} else {
+			puts("opened door");
+			door->tex = CELL_TEX_EMPTY;
+		}
+		break;
 	}
 }
 

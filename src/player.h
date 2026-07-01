@@ -28,7 +28,8 @@ enum {
 
 
 void player_init(player_t *player, map_t *map);
-void player_handle_input(player_t *player, map_t *map, u32 keys, float delta);
+void player_handle_input(player_t *player, map_t *map, u32 keys_held,
+	u32 keys_pressed, float delta);
 void player_move(player_t *player, vec3_t dir, map_t *map, float delta);
 void player_rotate(player_t *player, float by);
 

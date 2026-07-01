@@ -8,6 +8,7 @@
 void creature_init(creature_t *creature, float x, float y) {
 	creature->pos = (vec3_t) {x, y, CAMERA_HEIGHT};
 	creature->has_los = false;
+	creature->action = CREATURE_ACTION_WANDER;
 }
 
 
@@ -24,6 +25,21 @@ void creature_update_los(creature_t *creature) {
 
 	if (vec3_length(vec3_sub(rc_res.pos, creature->pos)) > player_distance) {
 		creature->has_los = true;
-		creature->last_spotted_player_pos = g_game.player->pos;
+		creature->last_spotted_pos = g_game.player->pos;
+	}
+}
+
+void creature_tick(creature_t *creature) {
+	switch (creature->action) {
+	case CREATURE_ACTION_WANDER:
+		creature_update_los(creature);
+		if (creature->has_los) {
+			creature->action = CREATURE_ACTION_CHASE;
+			break;
+		}
+
+		// TODO
+		break;
+		
 	}
 }

@@ -25,11 +25,13 @@
 typedef int8_t tex_t;
 
 enum {
-	CELL_EMPTY = -1,
+	CELL_TEX_EMPTY = -1,
 	// indeces from 0 upwards are used for textured walls
-	CELL_UNSPECIFIED_TEX = 2,
+	CELL_TEX_UNSPECIFIED = 2,
 	// except for this one, walls with non-digit symbols should be treated
 	// as having tex index 2
+	CELL_TEX_DOOR = 7
+	// TODO make door
 };
 
 enum {
@@ -44,6 +46,9 @@ enum {
 		// index of lore string in data[0]
 	INTERACTABLE_TYPE_PICKUP = 2,
 	INTERACTABLE_TYPE_DOOR_SWITCH = 3,
+		// expects cell coordinates of the door in data[0] (x) and
+		// data[1] (y)
+		// TODO: make data[3] be an item requirement
 };
 
 
