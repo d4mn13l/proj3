@@ -1,6 +1,7 @@
 #ifndef PPM_H
 #define PPM_H
 
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 
@@ -24,14 +25,20 @@ typedef struct {
 #define COLOUR_GREEN (colour_t) {0, PPM_MAX_COLOUR, 0}
 #define COLOUR_RED (colour_t) {0, 0, PPM_MAX_COLOUR}
 #define COLOUR_BLACK (colour_t) {0, 0, 0}
+#define COLOUR_TRANSPARENT (colour_t) {0x88, 0, 0x98}
 
 
 image_t *ppm_image_new(size_t w, size_t h);
 void ppm_image_init(image_t *img, size_t w, size_t h);
 void ppm_image_free(image_t *img);
 
+bool ppm_colour_equals(colour_t c1, colour_t c2);
+
 void ppm_image_set_pixel(image_t *img, size_t x, size_t y, colour_t to);
+void ppm_image_fill_rectangle(image_t *img, size_t px, size_t py, size_t sx,
+        size_t sy, colour_t colour);
 colour_t* ppm_image_get_pixel(image_t *img, size_t x, size_t y);
+
 
 image_t **ppm_image_split(image_t *src, size_t nx, size_t ny);
 // splits the image into nx * ny images  of equal size and returns them as an

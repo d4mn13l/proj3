@@ -3,14 +3,16 @@
 #include <3ds.h>
 #include <math.h>
 
+#include "game.h"
 #include "map.h"
 #include "maths.h"
 #include "keymap.h"
+#include "renderer.h"
 
 
 
 void player_init(player_t *player, map_t *map) {
-	player->pos = (vec3_t) {map->player_start_x + 0.5,
+	player->pos = (vec3_t) {map->player_start_x + CAMERA_HEIGHT,
 		map->player_start_y + 0.5, 0.5};
 	player->rotation = 0;
 	player->action = PLAYER_ACTION_NONE;
@@ -37,6 +39,14 @@ void player_handle_input(player_t *player, map_t *map, u32 keys, float delta) {
 	}
 	if (keys & KEY_TURN_RIGHT) {
 		player_rotate(player, ROTATE_SPEED * delta);
+	}
+
+	if (keys & KEY_INTERACT) {
+		prop_t *interactable =
+			map_get_interactable(map, player->pos.x, player->pos.y);
+		if (interactable != NULL) {
+			game_interact(interactable);
+		}
 	}
 
 	if (!(dir.x == 0 && dir.y == 0 && dir.z == 0)) {

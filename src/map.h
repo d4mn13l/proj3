@@ -1,32 +1,74 @@
 #ifndef MAP_H
 #define MAP_H
 
+#include <3ds.h>
 #include <stdio.h>
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "maths.h"
+
+
+#define MAX_MAP_DIMENSIONS 255
+// make sure the dimensions fit into an 8 bit value
 
 #define CELL_CHAR_EMPTY ' '
 #define CELL_CHAR_PLAYER_START 'S'
 
+#define MAP_SECTION_SEPERATOR ']'
+#define PROP_DATA_COUNT 3
+
 #define MAX_PROPS_PER_CELL 4
 
-typedef struct prop_t prop_t;
-// defined in renderer.h
+
 
 typedef int8_t tex_t;
 
 enum {
 	CELL_EMPTY = -1,
-	// indeces from 0 to 9 are used for textured walls
+	// indeces from 0 upwards are used for textured walls
 	CELL_UNSPECIFIED_TEX = 2,
 	// except for this one, walls with non-digit symbols should be treated
 	// as having tex index 2
 };
 
+enum {
+	CELL_FLAGS_NONE,
+	CELL_FLAG_SHADE_DEFAULT,
+	CELL_FLAG_SHADE_BLINK,
+};
+
+enum {
+	INTERACTABLE_TYPE_NONE = 0,
+	INTERACTABLE_TYPE_LORE = 1,
+		// index of lore string in data[0]
+	INTERACTABLE_TYPE_PICKUP = 2,
+	INTERACTABLE_TYPE_DOOR_SWITCH = 3,
+};
+
+
+typedef struct {
+	vec3_t pos;
+	// z unused but must be set to 0.5
+	float width;
+	// from centre to side
+	tex_t tex;
+	
+	// ignore these when this is not interactable:
+	// also note that a cell can only have 1 interactable
+	u8 interactable_type;
+	u8 data[PROP_DATA_COUNT];
+} prop_t;
+// you could argue that this belongs into renderer.h but i dont want to deal
+// with circular dependency bs
+
+
 typedef struct {
 	tex_t tex;
-	prop_t *props[MAX_PROPS_PER_CELL];
+	prop_t props[MAX_PROPS_PER_CELL];
+	// reserving 4 prop slots is a huge waste of memory but its not
+	// tight so whatever
+	int flags;
 } cell_t;
 
 
@@ -41,12 +83,22 @@ typedef struct {
 void map_load(map_t *map, FILE *map_file);
 void map_free(map_t *map);
 
+// returns EXIT_FAILURE if there were no more free prop slots, otherwise
+// returns EXIT_SUCCESS
+int map_add_prop(map_t *map, float x, float y, tex_t tex);
+int map_add_interactable(map_t *map, float x, float y, tex_t tex, u8 type,
+	u8 *data);
+
+
+// none of these functions do bounds checks (except obv map_is_in_bounds)
+prop_t *map_get_interactable(map_t *map, size_t cx, size_t cy);
+bool map_is_in_bounds(map_t *map, int x, int y);
+cell_t *map_get_cell(map_t *map, size_t x, size_t y);
+
+
+
 void map_print_debug_info(map_t *map);
 void map_render_minimap(map_t *map, char *file_name);
 
-
-bool map_is_in_bounds(map_t *map, size_t x, size_t y);
-cell_t *map_get_cell(map_t *map, size_t x, size_t y);
-// this does not perform any bound checks
 
 #endif

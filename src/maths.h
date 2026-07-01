@@ -22,7 +22,7 @@ vec3_t vec3_mul_scalar(float a, vec3_t v);
 float vec3_dot_product(vec3_t v1, vec3_t v2);
 
 vec3_t vec3_normalised(vec3_t v);
-float vec3_magnitude(vec3_t v);
+float vec3_length(vec3_t v);
 
 
 vec3_t vec3_rotate_y(vec3_t v, float angle);

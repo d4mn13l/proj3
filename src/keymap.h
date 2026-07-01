@@ -13,3 +13,5 @@
 #define KEY_INTERACT KEY_Y
 
 #define KEY_PAUSE KEY_START
+
+#define KEY_SKIP_TEXT KEY_X

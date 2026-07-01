@@ -13,12 +13,12 @@ void ppm_image_init(image_t *img, size_t w, size_t h) {
 	img->w = w;
 	img->h = h;
 	img->pixels = malloc(w * h * sizeof(colour_t));
-	ASSERT(img->pixels != NULL, __LINE__, __FILE__);
+	ASSERT(img->pixels != NULL);
 }
 
 image_t *ppm_image_new(size_t w, size_t h) {
 	image_t *img = malloc(sizeof(image_t));
-	ASSERT(img != NULL, __LINE__, __FILE__);
+	ASSERT(img != NULL);
 	ppm_image_init(img, w, h);
 	return img;
 }
@@ -29,11 +29,16 @@ void ppm_image_free(image_t *img) {
 }
 
 
+bool ppm_colour_equals(colour_t c1, colour_t c2) {
+	return c1.r == c2.r && c1.g == c2.g && c1.b == c2.b;
+}
+
+
 image_t** ppm_image_split(image_t *src, size_t nx, size_t ny) {
 	size_t into_w = src->w / nx;
 	size_t into_h = src->h / ny;
-	ASSERT(into_w * nx == src->w, __LINE__, __FILE__);
-	ASSERT(into_h * ny == src->h, __LINE__, __FILE__);
+	ASSERT(into_w * nx == src->w);
+	ASSERT(into_h * ny == src->h);
 	// make sure that src->w is a multiple of w and src->h is multiple of h
 	// so that the image can actually be split up equally
 
@@ -89,8 +94,7 @@ void ppm_image_load(image_t *img, FILE *f) {
 			goto header_copy_success;
 		}
 		c = fgetc(f);
-		ASSERT_ALWAYS(!feof(f), __LINE__, __FILE__ \
-			" (found eof while parsing ppm header)");
+		ASSERT_ALWAYS_MSG(!feof(f), "found eof while parsing ppm header");
 		if (isspace(c)) {
 			// skip ahead to next non-whitespace character
 			read_elements_count++;
@@ -110,14 +114,14 @@ void ppm_image_load(image_t *img, FILE *f) {
 	}
 	// this will be skipped if the 4 header elements are found before the
 	// buffer is filled
-	UNREACHABLE(__LINE__, __FILE__, "failed to parse ppm header (too long)");
+	UNREACHABLE("failed to parse ppm header (too long)");
 
 	header_copy_success:
 	int r = sscanf(header_buf, "%2s "SIZE_T_FORMAT" "SIZE_T_FORMAT" %d",
 		format, &w, &h, &max_colour);
-	ASSERT_ALWAYS(r == 4, __LINE__, __FILE__" (failed to parse ppm header)");
-	ASSERT_ALWAYS(!strcmp(format, PPM_FORMAT), __LINE__, __FILE__);
-	ASSERT_ALWAYS(max_colour <= PPM_MAX_COLOUR, __LINE__, __FILE__);
+	ASSERT_ALWAYS_MSG(r == 4, "failed to parse ppm header");
+	ASSERT_ALWAYS(!strcmp(format, PPM_FORMAT));
+	ASSERT_ALWAYS(max_colour <= PPM_MAX_COLOUR);
 
 	// initialise the image
 	ppm_image_init(img, w, h);
@@ -138,23 +142,33 @@ void ppm_image_load(image_t *img, FILE *f) {
 	free(buf);
 	
 	// TODO working way to assert this:
-	// ASSERT_ALWAYS(fgetc(f) == EOF_REAL, __LINE__, __FILE__ \
+	// ASSERT_ALWAYS(fgetc(f) == EOF_REAL \
 	// 	" (when loading an image file, expected eof)");
 }
 
 
 void ppm_image_set_pixel(image_t *img, size_t x, size_t y, colour_t to) {
-	ASSERT(x < img->w, __LINE__, __FILE__);
-	ASSERT(y < img->h, __LINE__, __FILE__);
+	ASSERT(x < img->w);
+	ASSERT(y < img->h);
 	img->pixels[x * img->h + (img->h - 1 - y)] = to;
 	// the 3ds framebuffer grows from bottom left y first
 	// in other words it is rotated 90 degrees counter clockwise
 }
 
 
+void ppm_image_fill_rectangle(image_t *img, size_t px, size_t py, size_t sx,
+	        size_t sy, colour_t colour) {
+	for (size_t x = px; x < px + sx; x++) {
+		for (size_t y = py; y < py + sy; y++) {
+			ppm_image_set_pixel(img, x, y, colour);
+		}
+	}
+}
+
+
 colour_t* ppm_image_get_pixel(image_t *img, size_t x, size_t y) {
-	ASSERT(x < img->w, __LINE__, __FILE__);
-	ASSERT(y < img->h, __LINE__, __FILE__);
+	ASSERT(x < img->w);
+	ASSERT(y < img->h);
 	return &img->pixels[x * img->h + (img->h - 1 - y)];
 }
 

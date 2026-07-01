@@ -2,16 +2,20 @@
 
 #include <3ds.h>
 #include <math.h>
+#include <string.h>
 #include <stdbool.h>
 
-#include "3ds/svc.h"
 #include "map.h"
 #include "maths.h"
 #include "ppm.h"
+#include "shared.h"
 #include "util.h"
 
-void draw_textured(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
+
+
+void draw_pixel(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
 	shading_function_t shade, void *shade_params, size_t px, size_t py);
+
 
 // projects a pixel (x, y) from the output image onto the virtual camera plane 
 // fov and view_direction in rad
@@ -29,9 +33,9 @@ vec3_t project_pixel_onto_image_plane(int w, int h, int x, int y, vec3_t c, vec3
 // i: vector origin
 // r: vector direction (normalised)
 ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
-	ASSERT(r.z == 0, __LINE__, __FILE__);
+	ASSERT(r.z == 0);
 	// this function should only be used for rays that have z = 0
-	ASSERT(is_approx_zero(vec3_magnitude(r) - 1), __LINE__, __FILE__);
+	ASSERT(is_approx_zero(vec3_length(r) - 1));
 	// assert r is normalised
 
 	int r_x_sign = r.x / fabs(r.x);
@@ -80,6 +84,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 	// this remains unchanged if the ray doesnt hit anything
 	res.cell_x = i.x < 0 ? (int) i.x - 1 : (int) i.x;
 	res.cell_y = i.y < 0 ? (int) i.y - 1 : (int) i.y;
+	memset(&res.hit_props, 0, sizeof(res.hit_props));
 	res.ray_direction = r;
 	res.ray_origin = i;
 
@@ -87,10 +92,64 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 		RENDER_DEBUG(printf("now with s=(%f %f %f), cell pos = (%d %d)"\
 				" and last_stepped_x = %b\n", s.x, s.y, s.z,
 				res.cell_x, res.cell_y, last_stepped_x));
-		tex_t hit_cell = map_get_cell(map, res.cell_x, res.cell_y)->tex;
+		cell_t *hit_cell = map_get_cell(map, res.cell_x, res.cell_y);
 
-		if (hit_cell != CELL_EMPTY) {
-			res.hit_cell_tex = hit_cell;
+		// check for intersection with any props
+		// this only checks if the ray goes through the bounding box
+		// of the prop
+		// it might not actually hit bc it is transparent where it
+		// was hit but this will be determined in draw
+
+		for (size_t pi = 0; pi < MAX_PROPS_PER_CELL; pi++) {
+			prop_t *prop = &hit_cell->props[pi];
+			if (prop == NULL) break;
+			
+			// FIXME the hit props should be ordered by the distance
+			// to the camera, but they arent necessarily if there
+			// are multiple in the same cell
+			// this could lead to props being draw above props
+			// infront of them
+
+			float t = vec3_dot_product(r, vec3_sub(prop->pos, i))
+				/ vec3_dot_product(r, r);
+			if (t < 0) continue;
+				// prop is in opposite ray direction
+				// ie behind the camera
+
+			vec3_t b = vec3_add(i, vec3_mul_scalar(t, r));
+				// closest point on the ray to the prop
+
+			if ((int) b.x != (int) prop->pos.x
+				|| (int) b.y != (int) prop->pos.y) continue;
+			
+			float prop_ray_distance =
+				vec3_length(vec3_sub(prop->pos, b));
+			// distance to the closest point on the ray
+
+			if (prop_ray_distance > prop->width) continue;
+				// ray doesnt hit
+
+			u8 tex_pos_x = (1 - prop->width + prop_ray_distance)
+				 * (float) TEX_DIMENSIONS;
+			// FIXME this only displays
+			// (mirrored right half .. right half)
+			// of the texture
+
+			for (size_t pj = 0; pj < MAX_PROPS_PER_CELL; pj++) {
+				if (res.hit_props[pj].prop != NULL) continue;
+				
+				res.hit_props[pj].prop = prop;
+				res.hit_props[pj].pos = b;
+				res.hit_props[pj].tex_pos_x = tex_pos_x;
+				res.hit_props[pj].distance = t;
+				break;
+				
+			}
+		}
+		
+		
+		if (hit_cell->tex != CELL_EMPTY) {
+			res.hit_cell_tex = hit_cell->tex;
 			break;
 		}
 		
@@ -107,12 +166,36 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 	}
 
 	res.wall_orientation = 1 - last_stepped;
-	// flip this because uhh idk
-	// theres probably another flip somewhere else that cancels this out
+	// flip this
 	if (last_stepped == DIR_X) {
-		res.position = vec3_add(i, vec3_mul_scalar(s.x - t.x, r));
+		res.pos = vec3_add(i, vec3_mul_scalar(s.x - t.x, r));
 	} else {
-		res.position = vec3_add(i, vec3_mul_scalar(s.y - t.y, r));
+		res.pos = vec3_add(i, vec3_mul_scalar(s.y - t.y, r));
+	}
+
+	// (comment from renderer.h)
+	// calculate the x coordinate of the wall texture that was hit
+	// this doesnt really belong here but due to the way rendering is
+	// implemented this can be calculated once per row in cast_ray instead
+	// of being calculated for every pixel in draw_pixel
+	// TODO are the textures now flipped?
+	if (res.hit_cell_tex != CELL_EMPTY) {
+		switch (res.wall_orientation) {
+		case DIR_X:
+			res.tex_pos_x = (TEX_DIMENSIONS - 1) -
+				(u8) ((res.pos.x - (s8) res.pos.x)
+					* (float) TEX_DIMENSIONS);
+			if (r.y < 0) res.tex_pos_x = (TEX_DIMENSIONS - 1)
+				        - res.tex_pos_x;
+			break;
+		case DIR_Y:
+			res.tex_pos_x = (TEX_DIMENSIONS - 1) -
+				(u8) ((res.pos.y - (s8) res.pos.y)
+					* (float) TEX_DIMENSIONS);
+			if (r.x > 0) res.tex_pos_x = (TEX_DIMENSIONS - 1)
+			        	- res.tex_pos_x;
+			break;
+		};
 	}
 
 	return res;
@@ -121,14 +204,21 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 
  void render(image_t *img, map_t *map, float px, float py, float fov,
 		float rotation, tex_atlas_t *tex_atlas,
-		shading_function_t shade, void *shade_params) {
-	ASSERT(0 < fov && fov < PI, __LINE__, __FILE__);
-	
+		shading_function_t shade, void *shade_params, size_t scale) {
+ 	
+	// TODO better implementation of scaling
+	// i think it would be faster to loop over all x / y not just multiples
+	// of scale, and if they are not a multiple of scale just copy the
+	// previous pixel (y case) or column (x case)
+
+ 	
+	ASSERT(0 < fov && fov < PI);
+
 	RENDER_DEBUG(printf("w: %d, h: %d, px: %f, py: %f fov: %f, rot: %f\n",
 			w,h,px,py,fov,rotation));
 
 	// player position and aparture
-	vec3_t p = {px, py, 0.5};
+	vec3_t p = {px, py, CAMERA_HEIGHT};
 
 	// direction vector
 	vec3_t d = {cos(rotation), sin(rotation), 0};
@@ -149,7 +239,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 		project_pixel_onto_image_plane(img->w, img->h, 1, 0, c, d),
 		i_top_left);
 	const vec3_t i_y_delta = vec3_sub(
-		project_pixel_onto_image_plane(img->w, img->h, 0, 1, c, d),
+		project_pixel_onto_image_plane(img->w, img->h, 0, scale, c, d),
 		i_top_left);
 	// the distance between the projected pixels is always the same, so
 	// we dont have to recompute it every time
@@ -157,7 +247,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 	// projection of the currently drawn pixel
 	vec3_t i = i_top_left;
 
-	for (size_t x = 0; x < img->w; x++) {
+	for (size_t x = 0; x < img->w; x += scale) {
 		// first cast a ray parallel to the floor from z=0
 		// this checks if there is even a wall on that column at all
 
@@ -177,14 +267,14 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 		// NOTE if i change this to i for some reason, remember to also
 		// change it in the next line (definition of wall_distance)
 
-		float wall_distance = vec3_magnitude(
-		 vec3_sub(rc_res.position, p));
+		float wall_distance = vec3_length(
+		 vec3_sub(rc_res.pos, p));
 		RENDER_DEBUG(printf("wall distance: %f\n", wall_distance));
 
 		// now loop over all rows (y pixels) in this column
 		vec3_t r = horizontal_r;
 		// new direction for the z-angled rays
-		for (size_t y = 0; y < img->h; y++) {
+		for (size_t y = 0; y < img->h; y += scale) {
 			// we dont have to cast another ray here.
 			// the idea here is that we represent r as
 			// {horizontal_r.x, horizontal_r.y, some z}
@@ -214,22 +304,60 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 
 			// we only need to compute the z coordinate of the
 			// intersection, not x and y since they stay the same
-			rc_res.position.z = p.z + r.z * wall_distance;
+			rc_res.pos.z = p.z + r.z * wall_distance;
 			rc_res.ray_direction.z = r.z;
+
+			// update z positions of prop intersections
+			for (int i = 0; i < MAX_PROPS_PER_CELL; i++) {
+				if (rc_res.hit_props[i].prop == NULL) break;
+				rc_res.hit_props[i].pos.z =
+					r.z * rc_res.hit_props[i].distance
+					+ CAMERA_HEIGHT;
+			}
 
 			// we can leave the other values is rc_res as they dont
 			// change
-			draw_textured(img, tex_atlas, &rc_res, shade,
+			draw_pixel(img, tex_atlas, &rc_res, shade,
 				shade_params, x, y);
-		}
+                        if (scale != 1)
+                        	ppm_image_fill_rectangle(img, x, y, scale,
+                        		scale, *ppm_image_get_pixel(img, x, y));
+                }
 	}
 }
 
 
-void draw_textured(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
+void draw_pixel(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
 	shading_function_t shade, void *shade_params, size_t px, size_t py) {
-	if (rc_res->hit_cell_tex == CELL_EMPTY || rc_res->position.z < 0.0001 ||
-			rc_res->position.z > 0.9999) {
+
+	for (size_t i = 0; i < MAX_PROPS_PER_CELL; i++) {
+		// we assume that the props are ordered by distance from the
+		// camera, which is not necessarily the case when there are
+		// multiple props in the same cell
+		// FIXME
+
+		prop_hit_t *prop_hit = &rc_res->hit_props[i];
+		if (prop_hit->prop == NULL) break;
+
+		if (prop_hit->pos.z < 0 || 1 <  prop_hit->pos.z) break;
+
+		u8 ty = (TEX_DIMENSIONS - 1) - prop_hit->pos.z * (float) TEX_DIMENSIONS;
+		
+		colour_t *pix =  ppm_image_get_pixel(
+				ta->tex[prop_hit->prop->tex],
+				prop_hit->tex_pos_x, ty);
+
+		if (ppm_colour_equals(*pix, COLOUR_TRANSPARENT)) break;
+		
+		ppm_image_set_pixel(img, px, py, *pix);
+
+		
+		return;
+	}
+
+	
+	if (rc_res->hit_cell_tex == CELL_EMPTY || rc_res->pos.z < 0.0001 ||
+			rc_res->pos.z > 0.9999) {
 		// drawing floor / ceil
 		if (py * 2 - 1 == img->h) {
 			// drawing to the middle row of an image with odd height
@@ -249,49 +377,33 @@ void draw_textured(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
 		float in_cell_x = fmod1(fc_intersection.x);
 		float in_cell_y = fmod1(fc_intersection.y);
 
-		size_t ty = (size_t) (in_cell_y * (float) ta->h);
-		size_t tx = (size_t) (in_cell_x * (float) ta->w);
+		u8 ty = (size_t) (in_cell_y * TEX_DIMENSIONS);
+		u8 tx = (size_t) (in_cell_x * TEX_DIMENSIONS);
 
-		ASSERT(ty < ta->h, __LINE__, __FILE__);
-		ASSERT(tx < ta->w, __LINE__, __FILE__);
+		ASSERT(ty < TEX_DIMENSIONS);
+		ASSERT(tx < TEX_DIMENSIONS);
 
 		size_t tex_index = is_approx_zero(fc_intersection.z) ? 0 : 1;
 
-		ASSERT(tex_index < ta->count, __LINE__, __FILE__);
+		ASSERT(tex_index < ta->count);
 
 		colour_t *pixel = ppm_image_get_pixel(img, px, py);
 		*pixel = *ppm_image_get_pixel(ta->tex[tex_index], tx, ty);
 		shade(px, py, pixel, SHADE_FLAG_FLOOR_CEIL, shade_params);
 	} else {
-	
 		// drawing wall
-		size_t tx, ty;
+		u8 tx, ty;
 		//texture coordinates
-		ty = (ta->h - 1) - (size_t) (rc_res->position.z * (float) ta->h);
+		ty = (TEX_DIMENSIONS - 1)
+			- (size_t) (rc_res->pos.z * TEX_DIMENSIONS);
+		tx = rc_res->tex_pos_x;
 
-		switch (rc_res->wall_orientation) {
-		case DIR_X:
-			tx = (size_t) ((rc_res->position.x
-				- (int) rc_res->position.x) * (float) ta->w);
-			if (rc_res->ray_direction.y < 0) tx = (ta->w - 1) - tx;
-			break;
-		case DIR_Y:
-			tx = (size_t) ((rc_res->position.y
-				 - (int) rc_res->position.y) * (float) ta->w);
-			if (rc_res->ray_direction.x > 0) tx = (ta->w - 1) - tx;
-			break;
-		default:
-			UNREACHABLE(__LINE__, __FILE__, "invalid wall_orientaion");
-		}
-
-		tx = (ta->w - 1) - tx;
-		size_t tex_index = rc_res->hit_cell_tex;
-
-		ASSERT(tex_index < ta->count, __LINE__, __FILE__);
+		ASSERT(rc_res->hit_cell_tex < ta->count);
 
 		colour_t *pixel = ppm_image_get_pixel(img, px, py);
 
-		*pixel = *ppm_image_get_pixel(ta->tex[tex_index], tx, ty);
+		*pixel = *ppm_image_get_pixel(
+			ta->tex[rc_res->hit_cell_tex], tx, ty);
 
 		shade(px, py, pixel, rc_res->wall_orientation == DIR_X ?
 			SHADE_FLAG_WALL_X : SHADE_FLAG_WALL_Y, shade_params);
@@ -353,8 +465,15 @@ void tex_atlas_load(tex_atlas_t *tex_atlas, FILE *f, size_t nx, size_t ny) {
 
 	tex_atlas->nx = nx;
 	tex_atlas->ny = ny;
-	tex_atlas->w = tex_atlas->tex[0]->w;
-	tex_atlas->h = tex_atlas->tex[0]->h;
+	// tex_atlas->w = tex_atlas->tex[0]->w;
+	// tex_atlas->h = tex_atlas->tex[0]->h;
+
+	#ifdef DEBUG
+	for (size_t i = 0; i < nx * ny; i++) {
+		ASSERT(tex_atlas->tex[i]->w == TEX_DIMENSIONS);
+		ASSERT(tex_atlas->tex[i]->h == TEX_DIMENSIONS);
+	}
+	#endif
 	tex_atlas->count = nx * ny;
 }
 

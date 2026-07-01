@@ -24,12 +24,12 @@ float vec3_dot_product(vec3_t v1, vec3_t v2) {
 	return v1.x * v2.x + v1.y * v2.y + v1.z * v2.z;
 }
 
-float vec3_magnitude(vec3_t v) {
+float vec3_length(vec3_t v) {
 	return sqrt(v.x * v.x + v.y * v.y + v.z * v.z);
 }
 
 vec3_t vec3_normalised(vec3_t v) {
-	return vec3_mul_scalar(1 / vec3_magnitude(v), v);
+	return vec3_mul_scalar(1 / vec3_length(v), v);
 }
 
 vec3_t vec3_rotate_y(vec3_t v, float angle) {

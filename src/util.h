@@ -3,6 +3,7 @@
 
 #include <stdlib.h>
 #include <stdio.h>
+#include "shared.h"
 
 //#define DEBUG
 
@@ -16,41 +17,51 @@
 #endif
 
 #ifdef DEBUG
-#define ASSERT(cond, line, file) do {                      \
-if (!(cond)) {                                             \
-	printf("assertion \"%s\" failed at line %d in %s", \
-		#cond, line, file);                        \
-	exit(EXIT_FAILURE);                                \
+#define ASSERT(cond) do {                                               \
+if (!(cond)) {                                                          \
+	if (g_log_file)                                                 \
+	fprintf(g_log_file, "assertion \"%s\" failed at line %d in %s", \
+		#cond, __LINE__, __FILE__);                             \
+	exit(EXIT_FAILURE);                                             \
+}} while (0);
+#define ASSERT_MSG(cond, msg) do {                                           \
+if (!(cond)) {                                                               \
+	if (g_log_file)                                                      \
+	fprintf(g_log_file, "assertion \"%s\" failed at line %d in %s (%s)", \
+		#cond, __LINE__, __FILE__, msg);                             \
+	exit(EXIT_FAILURE);                                                  \
 }} while (0);
 
-
-#define ASSERT_RET(cond, line, file) do {                  \
-if (!(cond)) {                                             \
-	printf("assertion \"%s\" failed at line %d in %s", \
-		#cond, line, file);                        \
-	return EXIT_FAILURE;                               \
-} while (0);
 #else
-#define ASSERT(cond, line, file)
-#define ASSERT_RET(cond, line, file)
+#define ASSERT(cond)
+#define ASSERT_MSG(cond, msg)
 #endif
 
 
-// this is for asserts that should happen even in prod builds
-#define ASSERT_ALWAYS(cond, line, file) do {                      \
-if (!(cond)) {                                                    \
-	printf("assertion \"%s\" failed at line %d in %s",        \
-		#cond, line, file);                               \
-	exit(EXIT_FAILURE);                                       \
+// these are for asserts that should happen even in non debug builds
+#define ASSERT_ALWAYS(cond) do {                                     \
+if (!(cond)) {                                                        \
+	if (g_log_file)                                                \
+	fprintf(g_log_file, "assertion \"%s\" failed at line %d in %s", \
+		#cond, __LINE__, __FILE__);                              \
+	exit(EXIT_FAILURE);                                               \
+}} while (0);
+#define ASSERT_ALWAYS_MSG(cond, msg) do           {                          \
+if (!(cond)) {                                                               \
+	if (g_log_file)                                                      \
+ 	fprintf(g_log_file, "assertion \"%s\" failed at line %d in %s (%s)", \
+		#cond, __LINE__, __FILE__, msg);                             \
+	exit(EXIT_FAILURE);                                                  \
 }} while (0);
 
 
 
 
-#define UNREACHABLE(line, file, msg) do {                       \
-	printf("unreachable code reached at line %d in %s: %s", \
-		line, file, msg);                               \
-	exit(1);                                                \
+#define UNREACHABLE(msg) do {                                                \
+	if (g_log_file)                                                      \
+	fprintf(g_log_file, "unreachable code reached at line %d in %s: %s", \
+		__LINE__, __FILE__, msg);                                    \
+	exit(1);                                                             \
 } while (0);
 
 #ifdef ENABLE_RENDER_DEBUGGING

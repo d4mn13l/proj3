@@ -1,14 +1,10 @@
 #include <3ds.h>
 
 #include <stdio.h>
-#include <string.h>
 
-#include "3ds/os.h"
-#include "3ds/svc.h"
+#include "game.h"
 #include "map.h"
-#include "maths.h"
 #include "player.h"
-#include "ppm.h"
 #include "renderer.h"
 #include "shared.h"
 #include "util.h"
@@ -17,16 +13,16 @@
 
 
 int main() {
-	float fov = deg_to_rad(60);
-	
 	romfsInit();
+	g_log_file = fopen("proj3.log", "w");
+
 	gfxInitDefault();
 	gfxSetDoubleBuffering(GFX_TOP, true);
 	consoleInit(GFX_BOTTOM, NULL);
 
 	// load map
 	FILE *map_file = fopen(MAP_FILE_PATH, "r");
-	ASSERT_ALWAYS(map_file != NULL, __LINE__, __FILE__);
+	ASSERT_ALWAYS(map_file != NULL);
 	map_t map;
 	map_load(&map, map_file);
 	fclose(map_file);
@@ -35,8 +31,8 @@ int main() {
 
 	tex_atlas_t ta;
 	FILE *tex_f = fopen("romfs:/wall_textures.ppm", "r");
-	ASSERT_ALWAYS(tex_f != NULL, __LINE__, __FILE__);
-	tex_atlas_load(&ta, tex_f, 8, 1);
+	ASSERT_ALWAYS(tex_f != NULL);
+	tex_atlas_load(&ta, tex_f, 8, 2);
 	fclose(tex_f);
 
 	player_t player;
@@ -47,34 +43,23 @@ int main() {
 	// float delta;
 	// time that the last tick took in s
 
+	g_game.map = &map;
+	g_game.player = &player;
+	g_game.ta = &ta;
+	
+	g_game.state = GAME_STATE_PLAYING;
+	g_game.state_args = NULL;
+	// game.state = GAME_STATE_TEXT;
+	// game.state_args = (void *) lore[0];
+
 	while (aptMainLoop()) {
-		u64 tick_start = svcGetSystemTick();
-
-		hidScanInput();
-		u32 keys_down = hidKeysDown();
-		if (keys_down & KEY_START) break;
-
-		u32 keys_held = hidKeysHeld();
-		player_handle_input(&player, &map, keys_held, delta);
-
-		gfxFlushBuffers();
-		gfxSwapBuffers();
-		gspWaitForVBlank();
-		// rendering
-		image_t fb;
-		fb.w = 400;
-		fb.h = 240;
-		fb.pixels = (colour_t*) gfxGetFramebuffer(GFX_TOP, GFX_LEFT, NULL, NULL);
-		float cur_time = (float) (tick_start / CPU_TICKS_PER_MSEC) / 1000;
-		render(&fb, &map, player.pos.x, player.pos.y, fov,
-			player.rotation, &ta, shade_blink, (void *) &cur_time);
-		
-
-		delta = (float) (svcGetSystemTick() - tick_start) / (CPU_TICKS_PER_MSEC * 1000);
+		if (game_tick()) break;
 	}
 	
 	
 	map_free(&map);
+
+	if (g_log_file) fclose(g_log_file);
 
 	romfsExit();
 	gfxExit();
