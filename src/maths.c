@@ -8,6 +8,13 @@ float deg_to_rad(float deg) {
 }
 
 
+int sign(float f) {
+	return -2 * (*(int *) & f >> 31) - 1;
+	// this uses the fact that the first bit of a float (so at 2^31) is
+	// used to store the sign
+}
+
+
 vec3_t vec3_add(vec3_t v1, vec3_t v2) {
 	return (vec3_t) {v1.x + v2.x, v1.y + v2.y, v1.z + v2.z};
 }

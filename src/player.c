@@ -8,7 +8,7 @@
 #include "maths.h"
 #include "keymap.h"
 #include "renderer.h"
-
+#include "shared.h"
 
 
 void player_init(player_t *player, map_t *map) {
@@ -19,54 +19,60 @@ void player_init(player_t *player, map_t *map) {
 }
 
 
-void player_handle_input(player_t *player, map_t *map, u32 keys_held,
-        	u32 keys_pressed, float delta) {
-	vec3_t dir = (vec3_t) {0, 0, 0};
+
+void player_tick(player_t *player) {
+	player_handle_input(player);
+}
+
+
+void player_handle_input(player_t *player) {
+	u32 keys_held = hidKeysHeld();
+	u32 keys_down = hidKeysDown();
+
 	if (keys_held & KEY_FORWARD) {
-		dir = vec3_add(dir, DIR_FORWARD);
+		player_move(player, VEC3_FORWARD);
 	}
 	if (keys_held & KEY_RIGHT) {
-		dir = vec3_add(dir, DIR_RIGHT);
+		player_move(player, VEC3_RIGHT);
 	}
 	if (keys_held & KEY_BACK) {
-		dir = vec3_add(dir, DIR_BACKWARD);
+		player_move(player, VEC3_BACKWARD);
 	}
 	if (keys_held & KEY_LEFT) {
-		dir = vec3_add(dir, DIR_LEFT);
+		player_move(player, VEC3_LEFT);
 	}
+	// moving seperately for every direction makes sure that you can
+	// move diagonally into a wall and slide along, instead of getting
+	// stuck because its just one movement that results in an invalid
+	// position
 	
 	if (keys_held & KEY_TURN_LEFT) {
-		player_rotate(player, -ROTATE_SPEED * delta);
+		player_rotate(player, -ROTATE_SPEED * g_delta);
 	}
 	if (keys_held & KEY_TURN_RIGHT) {
-		player_rotate(player, ROTATE_SPEED * delta);
+		player_rotate(player, ROTATE_SPEED * g_delta);
 	}
 
-	if (keys_pressed & KEY_INTERACT) {
+	if (keys_down & KEY_INTERACT) {
 		prop_t *interactable =
-			map_get_interactable(map, player->pos.x, player->pos.y);
+			map_get_interactable(&g_game.map,
+				player->pos.x, player->pos.y);
 		if (interactable != NULL) {
 			game_interact(interactable);
 		}
 	}
-
-	if (!(dir.x == 0 && dir.y == 0 && dir.z == 0)) {
-		dir = vec3_normalised(dir);
-		player_move(player, dir, map, delta);
-	}
 }
 
 
-void player_move(player_t *player, vec3_t dir, map_t *map, float delta) {
+void player_move(player_t *player, vec3_t dir) {
 	vec3_t by = vec3_mul_scalar(
-			MOVE_SPEED * delta,
+			MOVE_SPEED * g_delta,
 			vec3_rotate_y(dir, player->rotation));
 	vec3_t new_pos = vec3_add(player->pos, by);
 
-	if (map_is_in_bounds(map, (int) new_pos.x, (int) new_pos.y)
-		&& map_get_cell(map, (int) new_pos.x, (int) new_pos.y)->tex
-			== CELL_TEX_EMPTY)
-		{
+	if (map_is_in_bounds(&g_game.map, (int) new_pos.x, (int) new_pos.y)
+			&& map_get_cell(&g_game.map, (int) new_pos.x,
+			(int) new_pos.y)->tex == CELL_TEX_EMPTY) {
 		player->pos = new_pos;
 	}
 }

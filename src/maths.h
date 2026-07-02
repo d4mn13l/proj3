@@ -29,6 +29,8 @@ vec3_t vec3_rotate_y(vec3_t v, float angle);
 
 
 float deg_to_rad(float deg);
+int sign(float f);
+// return 1 if f >= +0 and -1 for f <= -0
 
 static inline float fmod1(float d) {
 	float res = d - (int) d;

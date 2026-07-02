@@ -5,6 +5,9 @@
 #include <string.h>
 #include <stdbool.h>
 
+#include "3ds/os.h"
+#include "3ds/svc.h"
+#include "game.h"
 #include "map.h"
 #include "maths.h"
 #include "ppm.h"
@@ -110,8 +113,11 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 			// this could lead to props being draw above props
 			// infront of them
 
-			float t = vec3_dot_product(r, vec3_sub(prop->pos, i))
-				/ vec3_dot_product(r, r);
+
+			vec3_t to_prop = vec3_sub(prop->pos, i);
+			float t = vec3_dot_product(r, to_prop);
+				// / vec3_dot_product(r, r);
+				// |r| = 1 so r.r = 1
 			if (t < 0) continue;
 				// prop is in opposite ray direction
 				// ie behind the camera
@@ -126,14 +132,18 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 				vec3_length(vec3_sub(prop->pos, b));
 			// distance to the closest point on the ray
 
+			int side = sign(r.x * to_prop.y - to_prop.x * r.y);
+			// whether the hit happened on the right side or the
+			// left side of the ray
+			// sign of the determinant of (r|to_prop)
+			// so 13221873
+
 			if (prop_ray_distance > prop->width) continue;
 				// ray doesnt hit
 
-			u8 tex_pos_x = (1 - prop->width + prop_ray_distance)
-				 * (float) TEX_DIMENSIONS;
-			// FIXME this only displays
-			// (mirrored right half .. right half)
-			// of the texture
+			u8 tex_pos_x = (1 - prop->width +
+					prop_ray_distance * side)
+				* (float) TEX_DIMENSIONS;
 
 			for (size_t pj = 0; pj < MAX_PROPS_PER_CELL; pj++) {
 				if (res.hit_props[pj].prop != NULL) continue;
@@ -343,14 +353,14 @@ void draw_pixel(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
 
 		u8 ty = (TEX_DIMENSIONS - 1) - prop_hit->pos.z * (float) TEX_DIMENSIONS;
 		
-		colour_t *pix =  ppm_image_get_pixel(
+		colour_t *tex_pix =  ppm_image_get_pixel(
 				ta->tex[prop_hit->prop->tex],
 				prop_hit->tex_pos_x, ty);
 
-		if (ppm_colour_equals(*pix, COLOUR_TRANSPARENT)) break;
-		
-		ppm_image_set_pixel(img, px, py, *pix);
-
+		if (ppm_colour_equals(*tex_pix, COLOUR_TRANSPARENT)) break;
+		colour_t *pix = ppm_image_get_pixel(img, px, py);
+		*pix = *tex_pix;
+		shade(px, py, pix, SHADE_FLAG_PROP, shade_params);
 		
 		return;
 	}
@@ -411,53 +421,68 @@ void draw_pixel(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
 }
 
 
-void shade_default(size_t x, size_t y, colour_t *pixel, int flags, void *params) {
-	if (flags & SHADE_FLAG_WALL_X) {
-		pixel->r = (pixel->r >> 1) & 0x7f;
-		pixel->g = (pixel->g >> 1) & 0x7f;
-		pixel->b = (pixel->b >> 1) & 0x7f;
-	}
+// void shade_default(size_t px, size_t py, colour_t *pixel, int flags,
+//		void *params) {
+// 	if (flags & SHADE_FLAG_WALL_X) {
+// 		pixel->r = (pixel->r >> 1) & 0x7f;
+// 		pixel->g = (pixel->g >> 1) & 0x7f;
+// 		pixel->b = (pixel->b >> 1) & 0x7f;
+// 	}
+// }
+
+
+void shade_dim(size_t px, size_t py, colour_t *pixel, int flags, void *by) {
+	pixel->r = pixel->r / *(u8 *) by;
+	pixel->g = pixel->g / *(u8 *) by;
+	pixel->b = pixel->b / *(u8 *) by;
 }
 
 
-void shade_dark(size_t x, size_t y, colour_t *pixel, int flags, void *by) {
-	pixel->r = pixel->r / *(uint8_t *) by;
-	pixel->g = pixel->g / *(uint8_t *) by;
-	pixel->b = pixel->b / *(uint8_t *) by;
-}
-
-
-void shade_blink(size_t x, size_t y, colour_t *pixel, int flags, void *params) {
-	static float last_switch_time = 0;
+void shade_blink(size_t px, size_t py, colour_t *pixel, int flags, void *params) {
 	static bool on = true;
+	static float next_switch_ms = 0;
 
-	if (x == 0 && y == 0) {
-		// this only runs for the first pixel so we can do the frame
-		// setup even though its a bit hacky
-		if (on && *(float *) params
-				> last_switch_time + SHADE_BLINK_ON_TIME) {
+	if (px == 0 && py == 0) {
+		float now = svcGetSystemTick() / CPU_TICKS_PER_MSEC;
+		check:
+		if (now < next_switch_ms) goto shade;
+		if (on) {
 			on = false;
-			last_switch_time = *(float *) params;
-		} else if (!on && *(float *) params
-				> last_switch_time + SHADE_BLINK_OFF_TIME) {
+			next_switch_ms = now +
+				BLINK_INTERVAL_MS * (1 - *(float *) params);
+			goto check;
+		} else {
 			on = true;
-			last_switch_time = *(float *) params;
+			next_switch_ms = now +
+				BLINK_INTERVAL_MS * *(float *) params;
+			goto check;
 		}
 	}
 
+	shade:
 	if (on) {
 		pixel->r = pixel->r / 4;
 		pixel->g = pixel->g / 4;
 		pixel->b = pixel->b / 4;
 	} else {
-		*pixel = COLOUR_BLACK;
+		if (flags & SHADE_FLAG_PROP) {
+			u8 dim_factor = 8;
+			shade_dim(px, py, pixel, flags, (void *) &dim_factor);
+		} else 
+			*pixel = COLOUR_BLACK;
 	}
 }
 
 
-void tex_atlas_load(tex_atlas_t *tex_atlas, FILE *f, size_t nx, size_t ny) {
+void tex_atlas_load(tex_atlas_t *tex_atlas, FILE *f) {
 	image_t img;
 	ppm_image_load(&img, f);
+
+	size_t nx = img.w / TEX_DIMENSIONS;
+	size_t ny = img.h / TEX_DIMENSIONS;
+
+	ASSERT(nx * TEX_DIMENSIONS == img.w);
+	ASSERT(ny * TEX_DIMENSIONS == img.h);
 
 	tex_atlas->tex = ppm_image_split(&img, nx, ny);
 	// this implicitly confirms that nx and ny are non-zero
@@ -465,15 +490,7 @@ void tex_atlas_load(tex_atlas_t *tex_atlas, FILE *f, size_t nx, size_t ny) {
 
 	tex_atlas->nx = nx;
 	tex_atlas->ny = ny;
-	// tex_atlas->w = tex_atlas->tex[0]->w;
-	// tex_atlas->h = tex_atlas->tex[0]->h;
 
-	#ifdef DEBUG
-	for (size_t i = 0; i < nx * ny; i++) {
-		ASSERT(tex_atlas->tex[i]->w == TEX_DIMENSIONS);
-		ASSERT(tex_atlas->tex[i]->h == TEX_DIMENSIONS);
-	}
-	#endif
 	tex_atlas->count = nx * ny;
 }
 

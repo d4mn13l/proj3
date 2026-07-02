@@ -30,7 +30,7 @@ enum {
 	CELL_TEX_UNSPECIFIED = 2,
 	// except for this one, walls with non-digit symbols should be treated
 	// as having tex index 2
-	CELL_TEX_DOOR = 7
+	CELL_TEX_DOOR = 8,
 	// TODO make door
 };
 
@@ -52,6 +52,7 @@ enum {
 };
 
 
+
 typedef struct {
 	vec3_t pos;
 	// z unused but must be set to 0.5
@@ -64,8 +65,11 @@ typedef struct {
 	u8 interactable_type;
 	u8 data[PROP_DATA_COUNT];
 } prop_t;
-// you could argue that this belongs into renderer.h but i dont want to deal
-// with circular dependency bs
+// in map.txt:
+// prop: x, y, tex_x, tex_y
+// interactable: type, x, y, tex_x, tex_y, data[0], .., data[n]
+
+
 
 
 typedef struct {

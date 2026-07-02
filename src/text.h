@@ -9,7 +9,8 @@ static const char text[][1024] = {
 	"to gather information about its biosphere and potential natural resources.\n"
 	"Both drones detected strange electromagnetic signals, which eventually became so strong that connection to them was lost. The only way to continue "
 	"research was to send a crewed expedition. Four brave researches \x1b[9magreed to be on the submarine because we are holding their families hostage\x1b[0m volunteered to join the expedition "
-	"to contribute to \x1b[9mour annual profit growth\x1b[0m the scientific progress of humanity.",
+	"to contribute to \x1b[9mour annual profit growth\x1b[0m the scientific progress of humanity."
+	,
 	
 	"(a recording of the voice of one of your crewmates)\n"
 	"(you hear cries and explosions in the background)\n"
@@ -20,6 +21,11 @@ static const char text[][1024] = {
 	"fuck i cant see shit\n"
 	"AAAAAAAAAAAHHHH\n"
 	"(suddenly your crewmate cries out in pain)"
+	,
+
+	"(the main console to the board computer with access to all the submarines controls)\n"
+	"(you put you hand on the scanner but it gets rejected)\n"
+	"(probably the captian is the only one authorised to access it)\n"
 	
 };
 

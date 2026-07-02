@@ -18,6 +18,7 @@ void cell_init(cell_t *cell, tex_t tex) {
 }
 
 void map_load(map_t *map, FILE *f) {
+	ASSERT_ALWAYS_MSG(g_game.ta.tex != NULL, "load ta before loading map");
 	fscanf(f, SIZE_T_FORMAT" "SIZE_T_FORMAT, &map->w, &map->h);
 
 	map->cells = malloc(map->w * map->h * sizeof(cell_t));
@@ -61,36 +62,47 @@ void map_load(map_t *map, FILE *f) {
 
 	// props section
 
-	for (c = fgetc(f); c != MAP_SECTION_SEPERATOR && c != EOF_REAL; c = fgetc(f)) {
+	while(true) {
 		// puts("notlop");
 		float x, y;
-		u8 tex;
-		int res = fscanf(f, "%f %f %hhu", &x, &y, &tex);
+		u8 tex_x, tex_y;
+		int res = fscanf(f, "%f %f %hhu %hhu", &x, &y, &tex_x, &tex_y);
 		if (res == 0 || res == -1) break;
-		ASSERT_ALWAYS_MSG(res == 3, "failed to parse prop in map file");
-		map_add_prop(map, x, y, tex);
+		ASSERT_ALWAYS_MSG(res == 4, "failed to parse prop in map file");
+		map_add_prop(map, x, y, tex_x + tex_y * g_game.ta.nx);
+
+		char c;
+		do { c = fgetc(f); }
+		while (c != '\n' && c != EOF_REAL);
 	}
+
 	fgetc(f);
+	fgetc(f);
+	// TODO test this
+	// this should read the newline and the section separator?
 
 	// interactables section
 	 
-	puts("int");
-	for (c = fgetc(f); c != MAP_SECTION_SEPERATOR && c != EOF_REAL; c = fgetc(f)) {
-		puts("lop");
+	while (true) {
 		float x, y;
-		u8 tex, interactable_type;
+		u8 tex_x, tex_y, interactable_type;
 		u8 data[PROP_DATA_COUNT];
 
-		int res = fscanf(f, "%f %f %hhu %hhu",
-			&x, &y, &tex, &interactable_type);
+		int res = fscanf(f, "%hhu %f %f %hhu %hhu",
+			&interactable_type, &x, &y, &tex_x, &tex_y);
 		if (res == 0 || res == -1) break;
-		ASSERT_ALWAYS_MSG(res == 4, "failed to parse interactable in map file");
+		ASSERT_ALWAYS_MSG(res == 5, "failed to parse interactable in map file");
 		for (int i = 0; i < PROP_DATA_COUNT; i++) {
 			res = fscanf(f, "%hhu", &data[i]);
 			printf("scanned data[%d] = %d\n", i, data[i]);
 			ASSERT_ALWAYS_MSG(res == 1, "missing data in interactable definition in map file");
 		}
-		map_add_interactable(map, x, y, tex, interactable_type, data);
+		map_add_interactable(map, x, y, tex_x + tex_y * g_game.ta.nx,
+			interactable_type, data);
+
+		char c;
+		do { c = fgetc(f); }
+		while (c != '\n' && c != EOF_REAL);
 	}
 }
 

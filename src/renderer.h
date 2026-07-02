@@ -34,6 +34,7 @@ typedef struct {
 	// distance from the ray origin to the intersection point
 } prop_hit_t;
 
+
 typedef struct {
 	vec3_t ray_origin;
 	vec3_t ray_direction;
@@ -52,29 +53,30 @@ typedef struct {
 
 typedef struct {
 	image_t **tex;
+	// dimension of the images is always TEX_DIMENSION
 	size_t count;
 	size_t nx, ny;
-	// size_t w, h;
-	// image dimensions
-	// these are always TEX_DIMENSIONS
 } tex_atlas_t;
 
 
-typedef void(*shading_function_t)(size_t x, size_t y, colour_t*, int flags,
-        void *params);
+typedef void(*shading_function_t)(size_t px, size_t py, colour_t*, int flags,
+	void *params);
 
 
-void shade_default(size_t x, size_t y, colour_t *pixel, int flags, void *params);
+// void shade_default(size_t px, size_t py, colour_t *pixel, int flags,
+	// void *params);
 // doesnt use params
-void shade_dark(size_t x, size_t y, colour_t *pixel, int flags, void *by);
+void shade_dim(size_t px, size_t py, colour_t *pixel, int flags, void *by);
 // by to be uint8_t* and darkens every pixel by it (by dividing)
-void shade_blink(size_t x, size_t y, colour_t *pixel, int flags, void *params);
-// expects params to be the current time as float*
-#define SHADE_BLINK_ON_TIME 0.4
-#define SHADE_BLINK_OFF_TIME 0.7
+void shade_blink(size_t px, size_t py, colour_t *pixel, int flags,
+	void *params);
+// expects param to be the ratio between off and on time relative to
+// BLINK_INTERVAL_MS in range [0, 1], such that the next off time is
+// BLINK_INTERVAL_MS * (1 - ratio) and on time is BLINK_INTERVAL_MS * ratio
+// the inverval will only be updated when turning on/off
 
 
-void tex_atlas_load(tex_atlas_t* ta, FILE *f, size_t nx, size_t ny);
+void tex_atlas_load(tex_atlas_t* ta, FILE *f);
 void tex_atlas_free(tex_atlas_t* ta);
 
 
