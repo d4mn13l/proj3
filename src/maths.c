@@ -9,7 +9,7 @@ float deg_to_rad(float deg) {
 
 
 int sign(float f) {
-	return -2 * (*(int *) & f >> 31) - 1;
+	return -2 * ((*(int *) &f) >> 31) - 1;
 	// this uses the fact that the first bit of a float (so at 2^31) is
 	// used to store the sign
 }
@@ -45,6 +45,11 @@ vec3_t vec3_rotate_y(vec3_t v, float angle) {
 		sin(angle) * v.x + cos(angle) * v.y,
 		v.z
 	};
+}
+
+bool vec3_equal_approx(vec3_t v1, vec3_t v2) {
+	return is_approx_zero(v1.x - v2.x) && is_approx_zero(v1.y - v2.y)
+		&& is_approx_zero(v1.z - v2.z);
 }
 
 bool is_approx_zero(float a) {

@@ -29,22 +29,22 @@ void player_handle_input(player_t *player) {
 	u32 keys_held = hidKeysHeld();
 	u32 keys_down = hidKeysDown();
 
+	vec3_t dir = (vec3_t) {0, 0, 0};
+
 	if (keys_held & KEY_FORWARD) {
-		player_move(player, VEC3_FORWARD);
+		dir = vec3_add(dir, VEC3_FORWARD);
 	}
 	if (keys_held & KEY_RIGHT) {
-		player_move(player, VEC3_RIGHT);
+		dir = vec3_add(dir, VEC3_RIGHT);
 	}
 	if (keys_held & KEY_BACK) {
-		player_move(player, VEC3_BACKWARD);
+		dir = vec3_add(dir, VEC3_BACKWARD);
 	}
 	if (keys_held & KEY_LEFT) {
-		player_move(player, VEC3_LEFT);
+		dir = vec3_add(dir, VEC3_LEFT);
 	}
-	// moving seperately for every direction makes sure that you can
-	// move diagonally into a wall and slide along, instead of getting
-	// stuck because its just one movement that results in an invalid
-	// position
+
+	player_move(player, dir);
 	
 	if (keys_held & KEY_TURN_LEFT) {
 		player_rotate(player, -ROTATE_SPEED * g_delta);
@@ -54,7 +54,7 @@ void player_handle_input(player_t *player) {
 	}
 
 	if (keys_down & KEY_INTERACT) {
-		prop_t *interactable =
+		sprite_t *interactable =
 			map_get_interactable(&g_game.map,
 				player->pos.x, player->pos.y);
 		if (interactable != NULL) {
@@ -64,17 +64,34 @@ void player_handle_input(player_t *player) {
 }
 
 
+u8 player_get_item_count(player_t *player, u8 item) {
+	return 0;
+}
+
+
+
 void player_move(player_t *player, vec3_t dir) {
 	vec3_t by = vec3_mul_scalar(
 			MOVE_SPEED * g_delta,
 			vec3_rotate_y(dir, player->rotation));
-	vec3_t new_pos = vec3_add(player->pos, by);
 
-	if (map_is_in_bounds(&g_game.map, (int) new_pos.x, (int) new_pos.y)
-			&& map_get_cell(&g_game.map, (int) new_pos.x,
+	// move in x and y seperately to avoid getting stuck when walking into
+	// wall at an angle
+	vec3_t new_pos = player->pos;
+
+	if (map_is_in_bounds(&g_game.map, (int) (new_pos.x + by.x),
+				(int) new_pos.y)
+			&& map_get_cell(&g_game.map, (int) (new_pos.x + by.x),
 			(int) new_pos.y)->tex == CELL_TEX_EMPTY) {
-		player->pos = new_pos;
+		new_pos.x += by.x;
 	}
+	if (map_is_in_bounds(&g_game.map, (int) new_pos.x,
+				(int) (new_pos.y + by.y))
+			&& map_get_cell(&g_game.map, (int) new_pos.x,
+			(int) (new_pos.y + by.y))->tex == CELL_TEX_EMPTY) {
+		new_pos.y += by.y;
+	}
+	player->pos = new_pos;
 }
 
 

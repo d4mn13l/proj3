@@ -17,11 +17,44 @@
 #include "util.h"
 
 
+
+void game_init() {
+	FILE *tex_f = fopen("romfs:/wall_textures.ppm", "r");
+	ASSERT_ALWAYS(tex_f != NULL);
+	tex_atlas_load(&g_game.ta, tex_f);
+	fclose(tex_f);
+
+	// load map
+	FILE *map_file = fopen("romfs:/map.txt", "r");
+	ASSERT_ALWAYS(map_file != NULL);
+	map_load(&g_game.map, map_file);
+	fclose(map_file);
+	map_file = NULL;
+	map_print_debug_info(&g_game.map);
+
+	player_init(&g_game.player, &g_game.map);
+
+	creature_init(&g_game.creature, 11.5, 16.5);
+
+	g_game.state = GAME_STATE_PLAYING;
+	g_game.state_args = NULL;
+}
+
+
+void game_deinit() {
+	map_free(&g_game.map);
+}
+
+
+
 void game_draw_bottom_screen() {
 	consoleClear();
-	printf("\x1b[37;1H frame time: %f", g_delta);
+	printf("\x1b[27;1H frame time: %f", g_delta);
+	printf("\x1b[28;1H creature pos: %f, %f", g_game.creature.pos.x, g_game.creature.pos.y);
+	printf("\x1b[24;1H creature chase target: %f, %f", g_game.creature.chase_target.x, g_game.creature.chase_target.y);
+	printf("\x1b[26;1H player pos: %f, %f", g_game.player.pos.x, g_game.player.pos.y);
 
-	prop_t *interactable = map_get_interactable(&g_game.map,
+	sprite_t *interactable = map_get_interactable(&g_game.map,
 		g_game.player.pos.x, g_game.player.pos.y);
 	if (interactable != NULL) {
 		char *action;
@@ -61,6 +94,7 @@ int game_tick_play() {
 	game_draw_bottom_screen();
 
 	player_tick(&g_game.player);
+	creature_tick(&g_game.creature);
 	
 	gfxFlushBuffers();
 	gfxSwapBuffers();
@@ -126,19 +160,19 @@ int game_tick_text() {
 
 
 
-void game_interact(prop_t *prop) {
-	switch (prop->interactable_type){
+void game_interact(sprite_t *sprite) {
+	switch (sprite->interactable_type){
 	case INTERACTABLE_TYPE_NONE:
 		// ???
 		return;
 	case INTERACTABLE_TYPE_LORE:
-		game_set_state(GAME_STATE_TEXT, (void *) text[prop->data[0]],
+		game_set_state(GAME_STATE_TEXT, (void *) text[sprite->data[0]],
 			NULL);
 		break;
 	case INTERACTABLE_TYPE_DOOR_SWITCH:
 		{}
-		cell_t *door =
-			map_get_cell(&g_game.map, prop->data[0], prop->data[1]);
+		cell_t *door = map_get_cell(&g_game.map,
+			sprite->data[0], sprite->data[1]);
 		if (door->tex == CELL_TEX_EMPTY) {
 			door->tex = CELL_TEX_DOOR;
 		} else {

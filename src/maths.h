@@ -12,10 +12,6 @@ typedef struct {
 	float x, y, z;
 } vec3_t;
 
-typedef struct {
-	float x, y;
-} vec2_t;
-
 vec3_t vec3_add(vec3_t v1, vec3_t v2);
 vec3_t vec3_sub(vec3_t v1, vec3_t v2);
 vec3_t vec3_mul_scalar(float a, vec3_t v);
@@ -23,6 +19,8 @@ float vec3_dot_product(vec3_t v1, vec3_t v2);
 
 vec3_t vec3_normalised(vec3_t v);
 float vec3_length(vec3_t v);
+
+bool vec3_equal_approx(vec3_t v1, vec3_t v2);
 
 
 vec3_t vec3_rotate_y(vec3_t v, float angle);

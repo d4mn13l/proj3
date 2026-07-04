@@ -37,11 +37,12 @@ typedef struct {
 
 
 // use g_game global from shared.h
-
+void game_init();
 int game_tick();
+void game_deinit();
 
 void game_set_state(int state, void *state_args, void (*state_change_callback)());
 
-void game_interact(prop_t *prop);
+void game_interact(sprite_t *sprite);
 
 #endif

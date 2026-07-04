@@ -22,17 +22,17 @@ enum {
 	SHADE_FLAG_WALL_X = 1,
 	SHADE_FLAG_WALL_Y = 2,
 	SHADE_FLAG_FLOOR_CEIL = 4,
-	SHADE_FLAG_PROP = 8,
+	SHADE_FLAG_SPRITE = 8,
 };
 
 
 typedef struct {
-	prop_t *prop;
+	sprite_t *sprite;
 	u8 tex_pos_x;
 	vec3_t pos;
 	float distance;
 	// distance from the ray origin to the intersection point
-} prop_hit_t;
+} sprite_hit_t;
 
 
 typedef struct {
@@ -47,7 +47,10 @@ typedef struct {
 	// this doesnt really belong here but due to the way rendering is
 	// implemented this can be calculated once per row in cast_ray instead
 	// of being calculated for every pixel in draw_pixel
-	prop_hit_t hit_props[MAX_PROPS_PER_CELL];
+	sprite_hit_t hit_sprites[MAX_SPRITES_PER_CELL];
+	// use MAX_SPRITES_PER_CELL here bc im too lazy to make another macro
+	// but i think its fair to assume a ray will not hit more sprites
+	// than that
 } ray_cast_result_t;
 
 

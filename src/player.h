@@ -12,9 +12,9 @@
 #define VEC3_LEFT (vec3_t) {0, -1, 0}
 // relative to rotation 0 (so facing in +x direction)
 
-#define MOVE_SPEED 2
-// TODO set this back to 1
-#define ROTATE_SPEED 1.5
+#define MOVE_SPEED 2.1
+// DEBUG this should be 1
+#define ROTATE_SPEED 2.3
 
 #define ITEM_COUNT 3
 enum {
@@ -27,7 +27,8 @@ typedef struct {
 	vec3_t pos;
 	float rotation;
 	int action;
-	u8 items[ITEM_COUNT * 3];
+	u8 items[ITEM_COUNT * 2];
+	// saved as {type_0, count_0, type_1, count_1, ...}
 } player_t;
 
 enum {
@@ -41,6 +42,7 @@ enum {
 void player_init(player_t *player, map_t *map);
 void player_tick(player_t *player);
 
+u8 player_get_item_count(player_t *player, u8 item);
 
 void player_handle_input(player_t *player);
 void player_move(player_t *player, vec3_t dir);

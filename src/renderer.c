@@ -87,7 +87,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 	// this remains unchanged if the ray doesnt hit anything
 	res.cell_x = i.x < 0 ? (int) i.x - 1 : (int) i.x;
 	res.cell_y = i.y < 0 ? (int) i.y - 1 : (int) i.y;
-	memset(&res.hit_props, 0, sizeof(res.hit_props));
+	memset(&res.hit_sprites, 0, sizeof(res.hit_sprites));
 	res.ray_direction = r;
 	res.ray_origin = i;
 
@@ -103,9 +103,9 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 		// it might not actually hit bc it is transparent where it
 		// was hit but this will be determined in draw
 
-		for (size_t pi = 0; pi < MAX_PROPS_PER_CELL; pi++) {
-			prop_t *prop = &hit_cell->props[pi];
-			if (prop == NULL) break;
+		for (size_t pi = 0; pi < MAX_SPRITES_PER_CELL; pi++) {
+			sprite_t *sprite = &hit_cell->sprites[pi];
+			if (sprite == NULL) break;
 			
 			// FIXME the hit props should be ordered by the distance
 			// to the camera, but they arent necessarily if there
@@ -114,7 +114,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 			// infront of them
 
 
-			vec3_t to_prop = vec3_sub(prop->pos, i);
+			vec3_t to_prop = vec3_sub(sprite->pos, i);
 			float t = vec3_dot_product(r, to_prop);
 				// / vec3_dot_product(r, r);
 				// |r| = 1 so r.r = 1
@@ -125,11 +125,11 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 			vec3_t b = vec3_add(i, vec3_mul_scalar(t, r));
 				// closest point on the ray to the prop
 
-			if ((int) b.x != (int) prop->pos.x
-				|| (int) b.y != (int) prop->pos.y) continue;
+			if ((int) b.x != (int) sprite->pos.x
+				|| (int) b.y != (int) sprite->pos.y) continue;
 			
 			float prop_ray_distance =
-				vec3_length(vec3_sub(prop->pos, b));
+				vec3_length(vec3_sub(sprite->pos, b));
 			// distance to the closest point on the ray
 
 			int side = sign(r.x * to_prop.y - to_prop.x * r.y);
@@ -138,20 +138,20 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 			// sign of the determinant of (r|to_prop)
 			// so 13221873
 
-			if (prop_ray_distance > prop->width) continue;
+			if (prop_ray_distance > sprite->width) continue;
 				// ray doesnt hit
 
-			u8 tex_pos_x = (1 - prop->width +
+			u8 tex_pos_x = (1 - sprite->width +
 					prop_ray_distance * side)
 				* (float) TEX_DIMENSIONS;
 
-			for (size_t pj = 0; pj < MAX_PROPS_PER_CELL; pj++) {
-				if (res.hit_props[pj].prop != NULL) continue;
+			for (size_t pj = 0; pj < MAX_SPRITES_PER_CELL; pj++) {
+				if (res.hit_sprites[pj].sprite != NULL) continue;
 				
-				res.hit_props[pj].prop = prop;
-				res.hit_props[pj].pos = b;
-				res.hit_props[pj].tex_pos_x = tex_pos_x;
-				res.hit_props[pj].distance = t;
+				res.hit_sprites[pj].sprite = sprite;
+				res.hit_sprites[pj].pos = b;
+				res.hit_sprites[pj].tex_pos_x = tex_pos_x;
+				res.hit_sprites[pj].distance = t;
 				break;
 				
 			}
@@ -318,10 +318,10 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 			rc_res.ray_direction.z = r.z;
 
 			// update z positions of prop intersections
-			for (int i = 0; i < MAX_PROPS_PER_CELL; i++) {
-				if (rc_res.hit_props[i].prop == NULL) break;
-				rc_res.hit_props[i].pos.z =
-					r.z * rc_res.hit_props[i].distance
+			for (int i = 0; i < MAX_SPRITES_PER_CELL; i++) {
+				if (rc_res.hit_sprites[i].sprite == NULL) break;
+				rc_res.hit_sprites[i].pos.z =
+					r.z * rc_res.hit_sprites[i].distance
 					+ CAMERA_HEIGHT;
 			}
 
@@ -340,27 +340,27 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 void draw_pixel(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
 	shading_function_t shade, void *shade_params, size_t px, size_t py) {
 
-	for (size_t i = 0; i < MAX_PROPS_PER_CELL; i++) {
+	for (size_t i = 0; i < MAX_SPRITES_PER_CELL; i++) {
 		// we assume that the props are ordered by distance from the
 		// camera, which is not necessarily the case when there are
 		// multiple props in the same cell
 		// FIXME
 
-		prop_hit_t *prop_hit = &rc_res->hit_props[i];
-		if (prop_hit->prop == NULL) break;
+		sprite_hit_t *sprite_hit = &rc_res->hit_sprites[i];
+		if (sprite_hit->sprite == NULL) break;
 
-		if (prop_hit->pos.z < 0 || 1 <  prop_hit->pos.z) break;
+		if (sprite_hit->pos.z < 0 || 1 <  sprite_hit->pos.z) break;
 
-		u8 ty = (TEX_DIMENSIONS - 1) - prop_hit->pos.z * (float) TEX_DIMENSIONS;
+		u8 ty = (TEX_DIMENSIONS - 1) - sprite_hit->pos.z * (float) TEX_DIMENSIONS;
 		
 		colour_t *tex_pix =  ppm_image_get_pixel(
-				ta->tex[prop_hit->prop->tex],
-				prop_hit->tex_pos_x, ty);
+				ta->tex[sprite_hit->sprite->tex],
+				sprite_hit->tex_pos_x, ty);
 
 		if (ppm_colour_equals(*tex_pix, COLOUR_TRANSPARENT)) break;
 		colour_t *pix = ppm_image_get_pixel(img, px, py);
 		*pix = *tex_pix;
-		shade(px, py, pix, SHADE_FLAG_PROP, shade_params);
+		shade(px, py, pix, SHADE_FLAG_SPRITE, shade_params);
 		
 		return;
 	}
@@ -465,7 +465,7 @@ void shade_blink(size_t px, size_t py, colour_t *pixel, int flags, void *params)
 		pixel->g = pixel->g / 4;
 		pixel->b = pixel->b / 4;
 	} else {
-		if (flags & SHADE_FLAG_PROP) {
+		if (flags & SHADE_FLAG_SPRITE) {
 			u8 dim_factor = 8;
 			shade_dim(px, py, pixel, flags, (void *) &dim_factor);
 		} else 
