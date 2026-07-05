@@ -7,6 +7,7 @@
 #include <math.h>
 
 #include "3ds/os.h"
+#include "interactables.h"
 #include "map.h"
 #include "player.h"
 #include "text.h"
@@ -34,8 +35,7 @@ void game_init() {
 
 	player_init(&g_game.map);
 
-	// creature_init(&g_game.creature, 11.5, 16.5);
-	creature_init(&g_game.creature, 69420, 69420);
+	creature_init(69420, 69420);
 
 	g_game.state = GAME_STATE_PLAYING;
 	g_game.state_args = NULL;
@@ -52,11 +52,16 @@ void game_draw_bottom_screen() {
 	consoleClear();
 	if (g_game.player.thinking != NULL)
 		printf("\x1b[1;1H(* %s *)", g_game.player.thinking);
+
+	if (g_game.player.held_item < ITEM_COUNT)
+		printf("\x1b[2;1H(press A to use %s (%hhu))",
+			ITEM_NAMES[g_game.player.held_item],
+			g_game.player.items[g_game.player.held_item]);
 	
-	printf("\x1b[27;1H frame time: %f", g_delta);
-	printf("\x1b[28;1H creature pos: %f, %f", g_game.creature.pos.x, g_game.creature.pos.y);
-	printf("\x1b[24;1H creature chase target: %f, %f", g_game.creature.chase_target.x, g_game.creature.chase_target.y);
-	printf("\x1b[26;1H player pos: %f, %f", g_game.player.pos.x, g_game.player.pos.y);
+	// printf("\x1b[27;1H frame time: %f", g_delta);
+	// printf("\x1b[28;1H creature pos: %f, %f", g_game.creature.pos.x, g_game.creature.pos.y);
+	// printf("\x1b[24;1H creature chase target: %f, %f", g_game.creature.chase_target.x, g_game.creature.chase_target.y);
+	// printf("\x1b[26;1H player pos: %f, %f", g_game.player.pos.x, g_game.player.pos.y);
 
 	sprite_t *interactable = map_get_interactable(&g_game.map,
 		g_game.player.pos.x, g_game.player.pos.y);
@@ -86,9 +91,9 @@ void game_draw_bottom_screen() {
 			action = "do something";
 		}
 		if (action2)
-			printf("\x1b[2;2H(press Y to %s %s)", action, action2);
+			printf("\x1b[3;1H(press Y to %s %s)", action, action2);
 		else
-			printf("\x1b[2;2H(press Y to %s)", action);
+			printf("\x1b[3;1H(press Y to %s)", action);
 	}
 }
 
@@ -101,7 +106,7 @@ int game_tick_play() {
 	game_draw_bottom_screen();
 
 	player_tick();
-	creature_tick(&g_game.creature);
+	creature_tick();
 
 	render_frame_begin();
 	render_top_screen();
@@ -114,7 +119,8 @@ int game_tick_play() {
 int game_tick_text() {
 	char c = *(char *) g_game.state_args;
 	printf("%c", c);
-	if (c == '\n') svcSleepThread(LORE_NEWLINE_DELAY_MS * 1000000);
+	if (c == '\n' || c == '.')
+		svcSleepThread(LORE_NEWLINE_DELAY_MS * 1000000);
 	else svcSleepThread(LORE_CHAR_DELAY_MS * 1000000);
 	gfxFlushBuffers();
 	gfxScreenSwapBuffers(GFX_BOTTOM, false);
@@ -178,6 +184,11 @@ void game_interact(sprite_t *sprite) {
 		player_pickup_item(sprite->data[0]);
 		sprite->interactable_type = INTERACTABLE_TYPE_NONE;
 		break;
+	case INTERACTABLE_TYPE_CUSTOM:
+		CUSTOM_INTERACTABLES[sprite->data[0]](sprite->data);
+		break;
+	default:
+		UNREACHABLE("invalid interactable type");
 	}
 }
 

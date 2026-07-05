@@ -5,6 +5,7 @@
 #include <string.h>
 
 #include "cell_enter_actions.h"
+#include "creature.h"
 #include "maths.h"
 #include "ppm.h"
 #include "renderer.h"
@@ -16,8 +17,8 @@
 void cell_init(cell_t *cell, tex_t tex, u8 roam_path) {
 	cell->tex = tex;
 	memset(&cell->sprites, 0, sizeof(cell->sprites[0]) * MAX_SPRITES_PER_CELL);
-	cell->flags = CELL_FLAGS_NONE;
 	cell->roam_path = 0;
+	cell->flags = 0;
 	cell->cell_enter_action = NULL;
 }
 
@@ -87,7 +88,8 @@ void map_load(map_t *map, FILE *f) {
 		}
 
 		ASSERT_ALWAYS_MSG(cell->cell_enter_action != NULL, "didnt find cell enter action for name");
-	
+
+		// skip rest until end of line
 		char c;
 		do { c = fgetc(f); }
 		while (c != '\n' && c != EOF_REAL);
@@ -167,9 +169,11 @@ int map_add_sprite(map_t *map, float x, float y, tex_t tex) {
 	return EXIT_FAILURE;
 }
 
+
 int map_add_interactable(map_t *map, float x, float y, tex_t tex, u8 type,
 		u8 *data) {
 	// duplicated from map_add_sprite (good practice)
+	// FIXME dont
 	size_t cx = (int) x;
 	size_t cy = (int) y;
 	
@@ -196,7 +200,18 @@ int map_add_interactable(map_t *map, float x, float y, tex_t tex, u8 type,
 }
 
 
-void map_entered_cell(map_t *map, vec3_t at) {
+void map_remove_sprite(map_t *map, size_t cx, size_t cy, tex_t tex) {
+	cell_t *cell = map_get_cell(map, cx, cy);
+	for (int i = 1; i < MAX_SPRITES_PER_CELL; i++) {
+		if (cell->sprites[i].tex == tex) {
+			cell->sprites[i] = SPRITE_EMPTY;
+			return;
+		}
+	}
+}
+
+
+void map_player_entered_cell(map_t *map, vec3_t at) {
 	cell_t *cell = map_get_cell(map, at.x, at.y);
 	if (cell->cell_enter_action) {
 		cell->cell_enter_action(cell,

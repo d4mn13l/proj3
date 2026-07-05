@@ -2,6 +2,7 @@
 
 #include <3ds.h>
 #include <math.h>
+#include <string.h>
 
 #include "game.h"
 #include "map.h"
@@ -16,7 +17,11 @@ void player_init(map_t *map) {
 	g_game.player.pos = (vec3_t) {map->player_start_x + CAMERA_HEIGHT,
 		map->player_start_y + 0.5, 0.5};
 	g_game.player.rotation = 0;
-	g_game.player.action = PLAYER_ACTION_NONE;
+	memset(&g_game.player.items, 0, sizeof(g_game.player.items));
+	g_game.player.held_item = ITEM_COUNT;
+	g_game.player.thinking = NULL;
+	g_game.player.think_for = 0.0f;
+	g_game.player.items[ITEM_MINE] = 2;
 }
 
 
@@ -67,6 +72,14 @@ void player_handle_input() {
 			game_interact(interactable);
 		}
 	}
+
+	if (keys_down & KEY_CYCLE_ITEM) {
+		player_cycle_held_item();
+	}
+
+	if (keys_down & KEY_USE_ITEM) {
+		player_use_held_item();
+	}
 }
 
 
@@ -80,6 +93,42 @@ void player_pickup_item(u8 item) {
 	g_game.player.items[item]++;
 }
 
+
+void player_use_held_item() {
+	switch (g_game.player.held_item) {
+	case ITEM_CAPTIANS_HAND:
+	case ITEM_VALUABLE_CORPORATE_PROPERTY:
+		g_game.player.thinking = "i cant use that";
+		g_game.player.think_for = 2.0f;
+		break;
+	case ITEM_MINE:
+		if (map_add_sprite(&g_game.map, g_game.player.pos.x,
+				g_game.player.pos.y, SPRITE_TEX_MINE)) {
+			g_game.player.thinking = "cant put it here (dont ask)";
+			g_game.player.think_for = 3.0f;
+			return;
+		}
+		map_get_cell(&g_game.map, g_game.player.pos.x,
+			g_game.player.pos.y)->flags |= CELL_FLAG_MINED;
+		fprintf(g_log_file, "mined cell %d %d\n", (int) g_game.player.pos.x, (int) g_game.player.pos.y);
+		g_game.player.items[ITEM_MINE]--;
+		if (g_game.player.items[ITEM_MINE] == 0)
+			player_cycle_held_item();
+		break;
+	};
+}
+
+
+void player_cycle_held_item() {
+	u8 start_item = g_game.player.held_item;
+	// go to next item until we find one whose count is not zero
+	// or we do one full loop
+	do {
+		g_game.player.held_item =
+			(g_game.player.held_item + 1) % (ITEM_COUNT + 1);
+	} while (g_game.player.items[g_game.player.held_item] == 0 &&
+			g_game.player.held_item != start_item);
+}
 
 
 void player_move(vec3_t dir) {
@@ -105,7 +154,7 @@ void player_move(vec3_t dir) {
 	}
 
 	if (!is_same_cell(g_game.player.pos, new_pos)) {
-		map_entered_cell(&g_game.map, new_pos);
+		map_player_entered_cell(&g_game.map, new_pos);
 	}
 	g_game.player.pos = new_pos;
 }

@@ -19,37 +19,44 @@ enum {
 	ITEM_CAPTIANS_HAND = 0,
 	ITEM_MINE = 1,
 	ITEM_LIGHT_SENSOR = 2,
+	ITEM_VALUABLE_CORPORATE_PROPERTY = 3,
 
-	ITEM_COUNT = 3,
+	ITEM_COUNT = 4,
 };
 
-static const char ITEM_NAMES[ITEM_COUNT][16] = {
-	"captain's hand", "mine", "light sensor"
+static const char ITEM_NAMES[ITEM_COUNT][32] = {
+	"captain's hand", "mine", "light sensor", "valuable corporate property"
 };
+
+
+static const char ITEM_EXPLANATIONS[ITEM_COUNT][64] = {
+	"",
+	"it explodes on contact. better be careful.",
+	"it starts beeping when it doesnt detect any light."
+};
+
 
 typedef struct {
 	vec3_t pos;
 	float rotation;
-	int action;
 	u8 items[ITEM_COUNT];
+	u8 held_item;
+	// in range [0, ITEM_COUNT]
+	// if its ITEM_COUNT, no item is held
 	char *thinking;
 	// displayed on the bottom screen for think_for s
 	float think_for;
 } player_t;
 
-enum {
-	PLAYER_ACTION_NONE,
-	PLAYER_ACTION_INTERACT,
-};
 
-
-// TODO should these all use g_game.player?
 
 void player_init(map_t *map);
 void player_tick();
 
 u8 player_get_item_count(u8 item);
 void player_pickup_item(u8 item);
+void player_use_held_item();
+void player_cycle_held_item();
 
 
 void player_handle_input();

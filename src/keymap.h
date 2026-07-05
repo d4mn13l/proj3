@@ -12,6 +12,9 @@
 
 #define KEY_INTERACT KEY_Y
 
-#define KEY_PAUSE KEY_START
+#define KEY_SKIP_TEXT KEY_B
 
-#define KEY_SKIP_TEXT KEY_X
+#define KEY_USE_ITEM KEY_A
+#define KEY_CYCLE_ITEM KEY_X
+
+#define KEY_PAUSE KEY_START

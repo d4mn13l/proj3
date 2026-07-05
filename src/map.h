@@ -37,10 +37,9 @@ enum {
 };
 
 enum {
-	CELL_FLAGS_NONE,
-	CELL_FLAG_SHADE_DEFAULT,
-	CELL_FLAG_SHADE_BLINK,
+	SPRITE_TEX_MINE = 26
 };
+
 
 enum {
 	INTERACTABLE_TYPE_NONE = 0,
@@ -52,8 +51,14 @@ enum {
 		// expects cell coordinates of the door in data[0] (x) and
 		// data[1] (y)
 		// TODO: make data[3] be an item requirement (for key cards)
+	INTERACTABLE_TYPE_CUSTOM = 4,
+		// calls CUSTOM_INTERACTABLES[data[0]] with data as arg
 };
 
+
+enum {
+	CELL_FLAG_MINED = 1,
+};
 
 
 typedef struct {
@@ -61,6 +66,7 @@ typedef struct {
 	// z unused but must be set to 0.5
 	float width;
 	// from centre to side
+	// TODO implement
 	tex_t tex;
 	
 	// ignore these when this is not interactable:
@@ -73,12 +79,12 @@ typedef struct {
 // interactable: type, x, y, tex_x, tex_y, data[0], .., data[n]
 
 
-#define SPRITE_EMPTY (sprite_t) { (vec3_t) {0,0,0}, 0, 0, 0, {0}}
-
+#define SPRITE_EMPTY (sprite_t) { (vec3_t) {0.0f, 0.0f, 0.0f}, 0.0f, 0, 0, {0}}
 
 
 typedef void(*cell_enter_action_f)(void *cell, vec3_t cell_pos);
 // void* bc they both this and cell_t depend on each other so c
+// cell_pos will always be centered in the cell (so {n+0.5, m+0.5, 0.5})
 
 typedef struct {
 	tex_t tex;
@@ -110,6 +116,7 @@ void map_free(map_t *map);
 int map_add_sprite(map_t *map, float x, float y, tex_t tex);
 int map_add_interactable(map_t *map, float x, float y, tex_t tex, u8 type,
 	u8 *data);
+void map_remove_sprite(map_t *map, size_t cx, size_t cy, tex_t tex);
 
 
 // none of these functions do bounds checks (except obv map_is_in_bounds)
@@ -119,7 +126,8 @@ bool map_is_in_bounds(map_t *map, int x, int y);
 cell_t *map_get_cell(map_t *map, size_t x, size_t y);
 bool is_same_cell(vec3_t c1, vec3_t c2);
 
-void map_entered_cell(map_t *map, vec3_t at);
+void map_player_entered_cell(map_t *map, vec3_t at);
+void map_creature_entered_cell(map_t *map, vec3_t at);
 
 void map_print_debug_info(map_t *map);
 void map_render_minimap(map_t *map, char *file_name);

@@ -30,7 +30,7 @@ void cea_upstairs_cutscene() {
 		// fmod returns a value in range (-2pi, 2pi) but we want
 		// to_rotate to be positive in range [0, 2pi)
 
-		if (to_rotate < 0.1f) {
+		if (to_rotate < 0.2f) {
 			done_rotating_at = time;
 		} else {
 			player_rotate(fminf(ROTATE_SPEED * g_delta, to_rotate));
@@ -45,17 +45,18 @@ void cea_upstairs_cutscene() {
 	// move creature into the hallway
 	
 	if (!moved_creature) {
-		creature_move(&g_game.creature, (vec3_t) {-2, -1, 0});
+		creature_move_to((vec3_t) {22.5f, 12.5f, 0.5f});
+		// hardcode bc then it might actually work
 		moved_creature = true;
 	}
 
 	// wait another second
 	if (time - done_rotating_at < 2.0f) return;
 	
-	g_game.player.thinking = "gotta run";
+	g_game.player.thinking = "oh shit, gotta run";
 	g_game.player.think_for = 3.0f;
 
-	creature_change_action(&g_game.creature, CREATURE_ACTION_CHASE);
+	creature_change_action(CREATURE_ACTION_CHASE);
 	game_set_state(GAME_STATE_PLAYING, NULL, NULL);
 }
 
@@ -80,11 +81,11 @@ void cea_upstairs_chase_spawn(void *vcell, vec3_t cell_pos) {
 	vec3_t creature_pos = vec3_add(
 	        (vec3_t) {cell_pos.x, cell_pos.y, 0.5}, (vec3_t) {2, 5, 0});
 
-	creature_move_to(&g_game.creature, creature_pos);
-	creature_change_action(&g_game.creature, CREATURE_ACTION_WAIT);
+	creature_move_to(creature_pos);
+	creature_change_action(CREATURE_ACTION_WAIT);
 
 	g_game.player.thinking = "oh oh. not good.";
-	g_game.player.think_for = 1;
+	g_game.player.think_for = 2.0f;
 }
 
 
@@ -94,11 +95,8 @@ void cea_upstairs_chase_arm(void *vcell, vec3_t cell_pos) {
 	// make sure this only happens nnce
 	static bool done = false;
 
-	fputs("arming chase", g_log_file);
-
 	if (player_get_item_count(ITEM_CAPTIANS_HAND) == 0) {
-		// only do this once this item has been picked up
-		fputs("no hand\n", g_log_file);
+		// only do this once the captians hand has been picked up
 		return;
 	}
 	

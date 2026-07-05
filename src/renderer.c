@@ -353,13 +353,14 @@ void draw_pixel(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
 
 		if (sprite_hit->pos.z < 0 || 1 <  sprite_hit->pos.z) break;
 
-		u8 ty = (TEX_DIMENSIONS - 1) - sprite_hit->pos.z * (float) TEX_DIMENSIONS;
+		u8 ty = (TEX_DIMENSIONS - 1)
+			- sprite_hit->pos.z * (float) TEX_DIMENSIONS;
 		
 		colour_t *tex_pix =  ppm_image_get_pixel(
 				ta->tex[sprite_hit->sprite->tex],
 				sprite_hit->tex_pos_x, ty);
 
-		if (ppm_colour_equals(*tex_pix, COLOUR_TRANSPARENT)) break;
+		if (ppm_colour_equals(*tex_pix, COLOUR_TRANSPARENT)) continue;
 		colour_t *pix = ppm_image_get_pixel(img, px, py);
 		*pix = *tex_pix;
 		shade(px, py, pix, SHADE_FLAG_SPRITE, shade_params);
