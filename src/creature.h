@@ -14,6 +14,7 @@
 enum {
 	CREATURE_ACTION_ROAM,
 	CREATURE_ACTION_CHASE,
+	CREATURE_ACTION_WAIT,
 };
 
 
@@ -43,6 +44,7 @@ void creature_update_chase_target(creature_t *creature, vec3_t to);
 void creature_change_action(creature_t *creature, int to);
 
 void creature_move(creature_t *creature, vec3_t by);
+void creature_move_to(creature_t *creature, vec3_t to);
 void creature_tick(creature_t *creature);
 
 

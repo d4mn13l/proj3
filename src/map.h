@@ -47,10 +47,11 @@ enum {
 	INTERACTABLE_TYPE_LORE = 1,
 		// index of lore string in data[0]
 	INTERACTABLE_TYPE_PICKUP = 2,
+		// data[0]: item type
 	INTERACTABLE_TYPE_DOOR_SWITCH = 3,
 		// expects cell coordinates of the door in data[0] (x) and
 		// data[1] (y)
-		// TODO: make data[3] be an item requirement
+		// TODO: make data[3] be an item requirement (for key cards)
 };
 
 
@@ -75,6 +76,10 @@ typedef struct {
 #define SPRITE_EMPTY (sprite_t) { (vec3_t) {0,0,0}, 0, 0, 0, {0}}
 
 
+
+typedef void(*cell_enter_action_f)(void *cell, vec3_t cell_pos);
+// void* bc they both this and cell_t depend on each other so c
+
 typedef struct {
 	tex_t tex;
 	sprite_t sprites[MAX_SPRITES_PER_CELL];
@@ -84,7 +89,9 @@ typedef struct {
 	int flags;
 	u8 roam_path;
 	// 0 -> not on any path
+	cell_enter_action_f cell_enter_action;
 } cell_t;
+
 
 
 typedef struct {
@@ -112,7 +119,7 @@ bool map_is_in_bounds(map_t *map, int x, int y);
 cell_t *map_get_cell(map_t *map, size_t x, size_t y);
 bool is_same_cell(vec3_t c1, vec3_t c2);
 
-
+void map_entered_cell(map_t *map, vec3_t at);
 
 void map_print_debug_info(map_t *map);
 void map_render_minimap(map_t *map, char *file_name);

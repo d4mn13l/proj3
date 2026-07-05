@@ -93,4 +93,12 @@ void render(image_t *img, map_t *map, float px, float py, float fov,
 
 ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r);
 // expose this to misuse this for line of sight check in creature.c
+
+
+
+void render_frame_begin();
+void render_top_screen();
+void render_frame_end();
+
+
 #endif

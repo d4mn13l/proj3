@@ -28,7 +28,6 @@ int main() {
 
 	game_deinit();
 	
-	
 	map_free(&g_game.map);
 
 	if (g_log_file) fclose(g_log_file);

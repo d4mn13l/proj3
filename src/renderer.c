@@ -5,7 +5,9 @@
 #include <string.h>
 #include <stdbool.h>
 
+#include "3ds/gfx.h"
 #include "3ds/os.h"
+#include "3ds/services/gspgpu.h"
 #include "3ds/svc.h"
 #include "game.h"
 #include "map.h"
@@ -231,7 +233,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 	vec3_t p = {px, py, CAMERA_HEIGHT};
 
 	// direction vector
-	vec3_t d = {cos(rotation), sin(rotation), 0};
+	vec3_t d = {cosf(rotation), sinf(rotation), 0};
 
 	// focal distance
 	float f = img->w / (2 * tan(fov/2));
@@ -503,6 +505,42 @@ void tex_atlas_free(tex_atlas_t *ta) {
 	ta->tex = NULL;
 }
 
+
+
+void render_frame_begin() {
+	gfxFlushBuffers();
+	gfxSwapBuffers();
+	gspWaitForVBlank();
+}
+
+
+void render_top_screen() {
+	float fov = deg_to_rad(69);
+	// rendering
+	image_t fb;
+	fb.w = 400;
+	fb.h = 240;
+	fb.pixels = (colour_t*) gfxGetFramebuffer(GFX_TOP, GFX_LEFT, NULL, NULL);
+
+
+	// calculate blink frequency
+
+	float distance = vec3_length(
+		vec3_sub(g_game.player.pos, g_game.creature.pos));
+
+	float ratio = fminf(1, distance / BLINK_MAX_DISTANCE);
+	// ratio *= ratio;
+	// ratio = 1;
+	
+	render(&fb, &g_game.map, g_game.player.pos.x, g_game.player.pos.y, fov, 
+		// g_game.player.rotation, &g_game.ta, shade_dark, (void *) &dim_factor,
+		g_game.player.rotation, &g_game.ta, shade_blink, (void *) &ratio,
+		2);
+}
+
+void render_frame_end() {
+	
+}
 
 // dont think ill need this but keep it just in case
 /* void draw_untextured(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,

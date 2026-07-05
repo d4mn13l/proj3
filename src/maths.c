@@ -41,8 +41,8 @@ vec3_t vec3_normalised(vec3_t v) {
 
 vec3_t vec3_rotate_y(vec3_t v, float angle) {
 	return (vec3_t) {
-		cos(angle) * v.x - sin(angle) * v.y,
-		sin(angle) * v.x + cos(angle) * v.y,
+		cosf(angle) * v.x - sinf(angle) * v.y,
+		sinf(angle) * v.x + cosf(angle) * v.y,
 		v.z
 	};
 }

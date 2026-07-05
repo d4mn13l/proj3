@@ -21,7 +21,12 @@ enum {
 	GAME_STATE_TEXT,
 		// expects pointer to next char to print in state_args
 	GAME_STATE_JUMPSCARE,
+	GAME_STATE_CUTSCENE,
+		// expects cutscene_f in state_args
 };
+
+
+typedef void (*cutscene_f)();
 
 
 typedef struct {

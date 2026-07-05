@@ -4,9 +4,11 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "cell_enter_actions.h"
 #include "maths.h"
 #include "ppm.h"
 #include "renderer.h"
+#include "shared.h"
 #include "util.h"
 
 
@@ -15,6 +17,8 @@ void cell_init(cell_t *cell, tex_t tex, u8 roam_path) {
 	cell->tex = tex;
 	memset(&cell->sprites, 0, sizeof(cell->sprites[0]) * MAX_SPRITES_PER_CELL);
 	cell->flags = CELL_FLAGS_NONE;
+	cell->roam_path = 0;
+	cell->cell_enter_action = NULL;
 }
 
 void map_load(map_t *map, FILE *f) {
@@ -63,10 +67,37 @@ void map_load(map_t *map, FILE *f) {
 	}
 	ASSERT_MSG(i == map->w * map->h, "expected more map, found EOF/]");
 
-	// sprite section
+	// cell enter action section
+	while (true) {
+		size_t cx, cy;
+		char name[32];
+		int res = fscanf(f, SIZE_T_FORMAT " " SIZE_T_FORMAT " %31s",
+			&cx, &cy, name);
+		if (res == 0 || res == -1) break;
+		ASSERT_ALWAYS_MSG(res == 3, "failed to parse cell enter action in map file");
 
+		cell_t *cell = map_get_cell(map, cx, cy);
+		
+		for (int i = 0; i < ARRAY_LENGTH(cell_enter_actions); i += 2) {
+			if (strcmp(name, cell_enter_actions[i].name)) continue;
+
+			cell->cell_enter_action =
+				cell_enter_actions[i + 1].action;
+			break;
+		}
+
+		ASSERT_ALWAYS_MSG(cell->cell_enter_action != NULL, "didnt find cell enter action for name");
+	
+		char c;
+		do { c = fgetc(f); }
+		while (c != '\n' && c != EOF_REAL);
+	}
+	
+	while (fgetc(f) != MAP_SECTION_SEPERATOR);
+
+
+	// sprite section
 	while(true) {
-		// puts("notlop");
 		float x, y;
 		u8 tex_x, tex_y;
 		int res = fscanf(f, "%f %f %hhu %hhu", &x, &y, &tex_x, &tex_y);
@@ -79,8 +110,7 @@ void map_load(map_t *map, FILE *f) {
 		while (c != '\n' && c != EOF_REAL);
 	}
 
-	fgetc(f);
-	fgetc(f);
+	while (fgetc(f) != MAP_SECTION_SEPERATOR);
 	// TODO test this
 	// this should read the newline and the section separator?
 
@@ -97,7 +127,6 @@ void map_load(map_t *map, FILE *f) {
 		ASSERT_ALWAYS_MSG(res == 5, "failed to parse interactable in map file");
 		for (int i = 0; i < SPRITE_DATA_COUNT; i++) {
 			res = fscanf(f, "%hhu", &data[i]);
-			printf("scanned data[%d] = %d\n", i, data[i]);
 			ASSERT_ALWAYS_MSG(res == 1, "missing data in interactable definition in map file");
 		}
 		map_add_interactable(map, x, y, tex_x + tex_y * g_game.ta.nx,
@@ -164,7 +193,15 @@ int map_add_interactable(map_t *map, float x, float y, tex_t tex, u8 type,
 	}
 
 	return EXIT_FAILURE;
-	
+}
+
+
+void map_entered_cell(map_t *map, vec3_t at) {
+	cell_t *cell = map_get_cell(map, at.x, at.y);
+	if (cell->cell_enter_action) {
+		cell->cell_enter_action(cell,
+			(vec3_t) {(size_t) at.x + 0.5, (size_t) at.y + 0.5, 0.5});
+	}
 }
 
 

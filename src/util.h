@@ -16,6 +16,10 @@
 #define EOF_REAL EOF
 #endif
 
+
+#define ARRAY_LENGTH(arr) sizeof(arr) / sizeof(arr[0])
+
+
 #ifdef DEBUG
 #define ASSERT(cond) do {                                               \
 if (!(cond)) {                                                          \

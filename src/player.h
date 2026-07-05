@@ -12,23 +12,29 @@
 #define VEC3_LEFT (vec3_t) {0, -1, 0}
 // relative to rotation 0 (so facing in +x direction)
 
-#define MOVE_SPEED 2.1
-// DEBUG this should be 1
+#define MOVE_SPEED 1
 #define ROTATE_SPEED 2.3
 
-#define ITEM_COUNT 3
 enum {
-	ITEM_CAPTIANS_HAND,
-	ITEM_MINE,
-	ITEM_LIGHT_SENSOR,
+	ITEM_CAPTIANS_HAND = 0,
+	ITEM_MINE = 1,
+	ITEM_LIGHT_SENSOR = 2,
+
+	ITEM_COUNT = 3,
+};
+
+static const char ITEM_NAMES[ITEM_COUNT][16] = {
+	"captain's hand", "mine", "light sensor"
 };
 
 typedef struct {
 	vec3_t pos;
 	float rotation;
 	int action;
-	u8 items[ITEM_COUNT * 2];
-	// saved as {type_0, count_0, type_1, count_1, ...}
+	u8 items[ITEM_COUNT];
+	char *thinking;
+	// displayed on the bottom screen for think_for s
+	float think_for;
 } player_t;
 
 enum {
@@ -39,14 +45,16 @@ enum {
 
 // TODO should these all use g_game.player?
 
-void player_init(player_t *player, map_t *map);
-void player_tick(player_t *player);
+void player_init(map_t *map);
+void player_tick();
 
-u8 player_get_item_count(player_t *player, u8 item);
+u8 player_get_item_count(u8 item);
+void player_pickup_item(u8 item);
 
-void player_handle_input(player_t *player);
-void player_move(player_t *player, vec3_t dir);
-void player_rotate(player_t *player, float by);
+
+void player_handle_input();
+void player_move(vec3_t dir);
+void player_rotate(float by);
 
 
 #endif

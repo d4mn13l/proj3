@@ -8,6 +8,7 @@
 #include "maths.h"
 #include "renderer.h"
 #include "shared.h"
+#include "util.h"
 
 
 
@@ -22,7 +23,8 @@ void creature_init(creature_t *creature, float x, float y) {
 	creature->sprite.tex = 7 + 1 * g_game.ta.nx;
 	// creature tex is at (7/1)
 	memset(&creature->sprite.data, 0, sizeof(creature->sprite.data));
-	map_get_cell(&g_game.map, x, y)->sprites[0] = creature->sprite;
+	if (map_is_in_bounds(&g_game.map, x, y))
+		map_get_cell(&g_game.map, x, y)->sprites[0] = creature->sprite;
 }
 
 
@@ -32,6 +34,7 @@ bool creature_has_los(creature_t *creature, vec3_t target) {
 	// wall behind target -> los
 	// target behind wall -> no los
 	vec3_t line_to_target = vec3_sub(target, creature->pos);
+	line_to_target.z = 0;
 	float distance = vec3_length(line_to_target);
 	
 	ray_cast_result_t rc_res = cast_ray(&g_game.map, creature->pos,
@@ -159,6 +162,8 @@ void creature_tick_chase(creature_t *creature) {
 		// roaming
 		// dont include vents here because the creature knows the
 		// player cant use them
+		// TODO after losing the player, continue chasing a few times
+		// in random directions
 		creature_change_action(creature, CREATURE_ACTION_ROAM);
 		fputs("changed to roaming\n", g_log_file);
 		return;
@@ -197,11 +202,19 @@ void creature_move(creature_t *creature, vec3_t by) {
 		// also this assumes the game is running fast enough so that
 		// the creature doesnt skip cells
 		
-		map_get_cell(&g_game.map, ocx, ocy)->sprites[0] = SPRITE_EMPTY;
+		if (map_is_in_bounds(&g_game.map, ocx, ocy))
+			map_get_cell(&g_game.map, ocx, ocy)->sprites[0]
+				= SPRITE_EMPTY;
 	}
 
-	map_get_cell(&g_game.map, creature->pos.x, creature->pos.y)->sprites[0]
-		= creature->sprite;
+	if (map_is_in_bounds(&g_game.map, creature->pos.x, creature->pos.y))
+		map_get_cell(&g_game.map, creature->pos.x,
+			creature->pos.y)->sprites[0] = creature->sprite;
+}
+
+
+void creature_move_to(creature_t *creature, vec3_t to) {
+	creature_move(creature, vec3_sub(to, creature->pos));
 }
 
 
@@ -226,7 +239,10 @@ void creature_tick(creature_t *creature) {
 	case CREATURE_ACTION_CHASE:
 		creature_tick_chase(creature);
 		break;
-
-
+	
+	case CREATURE_ACTION_WAIT:
+		break;
+	default:
+		UNREACHABLE("illegal creature state");
 	}
 }
