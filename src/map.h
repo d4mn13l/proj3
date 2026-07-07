@@ -68,30 +68,31 @@ typedef struct {
 	// from centre to side
 	// TODO implement
 	tex_t tex;
-	
-	// ignore these when this is not interactable:
-	// also note that a cell can only have 1 interactable
+	// ignore these next when this is not interactable:
 	u8 interactable_type;
 	u8 data[SPRITE_DATA_COUNT];
 } sprite_t;
 // encoding in map.txt:
-// sprite: x, y, tex_x, tex_y
-// interactable: type, x, y, tex_x, tex_y, data[0], .., data[n]
+// sprite: x y tex_x tex_y
+// interactable: type x y tex_x tex_y data[0] ... data[SPRITE_DATA_COUNT]
 
 
 #define SPRITE_EMPTY (sprite_t) { (vec3_t) {0.0f, 0.0f, 0.0f}, 0.0f, 0, 0, {0}}
 
 
 typedef void(*cell_enter_action_f)(void *cell, vec3_t cell_pos);
-// void* bc they both this and cell_t depend on each other so c
+// cell will always be of type cell_t* 
+// its passed as void* bc they both this and cell_t depend on each other
 // cell_pos will always be centered in the cell (so {n+0.5, m+0.5, 0.5})
 
 typedef struct {
 	tex_t tex;
 	sprite_t sprites[MAX_SPRITES_PER_CELL];
 	// the first sprite slot is reserved for the creature
-	// reserving 4 sprite slots is a huge waste of memory but its not
-	// tight so whatever
+	// also note that there can only be 1 interactable sprite
+	// this can be any of the sprites, but if there are multiple, only
+	// the first one is considered
+	// TODO reserve one index for interactables
 	int flags;
 	u8 roam_path;
 	// 0 -> not on any path

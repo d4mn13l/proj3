@@ -110,7 +110,6 @@ void player_use_held_item() {
 		}
 		map_get_cell(&g_game.map, g_game.player.pos.x,
 			g_game.player.pos.y)->flags |= CELL_FLAG_MINED;
-		fprintf(g_log_file, "mined cell %d %d\n", (int) g_game.player.pos.x, (int) g_game.player.pos.y);
 		g_game.player.items[ITEM_MINE]--;
 		if (g_game.player.items[ITEM_MINE] == 0)
 			player_cycle_held_item();

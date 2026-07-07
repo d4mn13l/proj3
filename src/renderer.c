@@ -126,6 +126,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 
 			vec3_t b = vec3_add(i, vec3_mul_scalar(t, r));
 				// closest point on the ray to the prop
+				// is this gram-schmidt?
 
 			if ((int) b.x != (int) sprite->pos.x
 				|| (int) b.y != (int) sprite->pos.y) continue;

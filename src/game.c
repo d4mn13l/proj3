@@ -50,6 +50,7 @@ void game_deinit() {
 
 void game_draw_bottom_screen() {
 	consoleClear();
+	printf("\x1b[5;1H%d", sizeof(sprite_t));
 	if (g_game.player.thinking != NULL)
 		printf("\x1b[1;1H(* %s *)", g_game.player.thinking);
 
