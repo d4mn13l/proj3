@@ -9,7 +9,8 @@ it is playable but there is not a lot to play.
 
 
 ## running
-this thing is written for the nintendo 3ds, but you can use an emulator like azahar to run it on another system.
+this thing is written for the nintendo 3ds, but you can use an emulator like azahar to run it on another system, the executable is the proj3.3dsx file.
+just put it into your 3ds / azahar and it should work.
 it is probably not that difficult to port it to smth like sdl but as i said i have neither motivation nor time rn. 
 
 ## controls
