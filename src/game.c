@@ -6,7 +6,10 @@
 #include <string.h>
 #include <math.h>
 
+#include "3ds/gfx.h"
 #include "3ds/os.h"
+#include "3ds/services/hid.h"
+#include "3ds/svc.h"
 #include "interactables.h"
 #include "map.h"
 #include "player.h"
@@ -74,25 +77,21 @@ void game_draw_bottom_screen() {
 		const char *action = NULL;
 		const char *action2 = NULL;
 		switch (interactable->interactable_type) {
-		case INTERACTABLE_TYPE_NONE:
+		break; case INTERACTABLE_TYPE_NONE:
 			action = "do nothing????";
-			break;
-		case INTERACTABLE_TYPE_LORE:
+		break; case INTERACTABLE_TYPE_LORE:
 			action = "read";
-			break;
-		case INTERACTABLE_TYPE_PICKUP:
+		break; case INTERACTABLE_TYPE_PICKUP:
 			action = "pick up";
 			action2 = ITEM_NAMES[interactable->data[0]];
-			break;
-		case INTERACTABLE_TYPE_DOOR_SWITCH:
+		break; case INTERACTABLE_TYPE_DOOR_SWITCH:
 			if (map_get_cell(&g_game.map, interactable->data[0],
 				interactable->data[1])->tex == CELL_TEX_EMPTY) {			
 				action = "close door";
 			} else {
 				action = "open door";
 			}
-			break;
-		default:
+		break; default:
 			action = "do something";
 		}
 		if (action2)
@@ -165,21 +164,30 @@ int game_tick_cutscene() {
 }
 
 
+int game_tick_credits() {
+	render_frame_begin();
+	puts("thanks for \"playing\"");
+	puts("press start to exit");
+	render_frame_end();
+
+	hidScanInput();
+	if (hidKeysHeld() & KEY_START) return EXIT_FAILURE;
+	return EXIT_SUCCESS;
+}
 
 
 void game_interact(sprite_t *sprite) {
 	switch (sprite->interactable_type){
-	case INTERACTABLE_TYPE_NONE:
+	break; case INTERACTABLE_TYPE_NONE:
 		// ???
 		return;
-	case INTERACTABLE_TYPE_LORE:
+	break; case INTERACTABLE_TYPE_LORE:
 		game_set_state(GAME_STATE_TEXT, (void *) text[sprite->data[0]],
 			NULL);
-		break;
-	case INTERACTABLE_TYPE_DOOR_SWITCH:
+	break; case INTERACTABLE_TYPE_DOOR_SWITCH:
 		{}
 		if (sprite->data[2]) {
-			// TODO
+			// TODO this should be an item requirement to open it
 		}
 		cell_t *door = map_get_cell(&g_game.map,
 			sprite->data[0], sprite->data[1]);
@@ -188,15 +196,12 @@ void game_interact(sprite_t *sprite) {
 		} else {
 			door->tex = CELL_TEX_EMPTY;
 		}
-		break;
-	case INTERACTABLE_TYPE_PICKUP:
+	break; case INTERACTABLE_TYPE_PICKUP:
 		player_pickup_item(sprite->data[0]);
 		sprite->interactable_type = INTERACTABLE_TYPE_NONE;
-		break;
-	case INTERACTABLE_TYPE_CUSTOM:
+	break; case INTERACTABLE_TYPE_CUSTOM:
 		CUSTOM_INTERACTABLES[sprite->data[0]](sprite->data);
-		break;
-	default:
+	break; default:
 		UNREACHABLE("invalid interactable type");
 	}
 }
@@ -205,15 +210,14 @@ int game_tick() {
 	u64 tick_start = svcGetSystemTick();
 	int res;
 	switch (g_game.state) {
-	case GAME_STATE_PLAYING:
+	break; case GAME_STATE_PLAYING:
 		res = game_tick_play();
-		break;
-	case GAME_STATE_TEXT:
+	break; case GAME_STATE_TEXT:
 		res =  game_tick_text();
-		break;
-	case GAME_STATE_CUTSCENE:
+	break; case GAME_STATE_CUTSCENE:
 		res = game_tick_cutscene();
-		break;
+	break; case GAME_STATE_CREDITS:
+		res = game_tick_credits();
 	default:
 		UNREACHABLE("illegal game state value");
 	}
@@ -223,8 +227,9 @@ int game_tick() {
 
 
 void game_win() {
-	// TODO implement
+	game_set_state(GAME_STATE_CREDITS, NULL, NULL);
 }
+
 
 
 void game_set_state(int state, void *state_args, void (*state_change_callback)()) {
@@ -239,7 +244,7 @@ void game_set_state(int state, void *state_args, void (*state_change_callback)()
 	g_game.state_change_callback = state_change_callback;
 
 	switch (state) {
-	case GAME_STATE_TEXT:
+	break; case GAME_STATE_TEXT:
 		consoleClear();
 	}
 }

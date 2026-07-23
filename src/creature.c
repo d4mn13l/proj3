@@ -319,35 +319,29 @@ void creature_change_action(int to) {
 	fprintf(g_log_file, "changing creature action to %d\n", to);
 	g_game.creature.action = to;
 	switch (to) {
-	case CREATURE_ACTION_STUNNED:
+	break; case CREATURE_ACTION_STUNNED:
 		g_game.creature.stunned_timer = CREATURE_STUNNED_TIME;
-		break;
-	case CREATURE_ACTION_ROAM:
+	break; case CREATURE_ACTION_ROAM:
 		creature_choose_roam_target();
-		break;
 	}
 }
 
 
 void creature_tick() {
 	switch (g_game.creature.action) {
-	case CREATURE_ACTION_ROAM:
+	break; case CREATURE_ACTION_ROAM:
 		creature_tick_roam();
-		break;
 
-	case CREATURE_ACTION_CHASE:
+	break; case CREATURE_ACTION_CHASE:
 		creature_tick_chase();
-		break;
 	
-	case CREATURE_ACTION_WAIT:
-		break;
+	break; case CREATURE_ACTION_WAIT:
 
-	case CREATURE_ACTION_STUNNED:
+	break; case CREATURE_ACTION_STUNNED:
 		g_game.creature.stunned_timer -= g_delta;
 		if (g_game.creature.stunned_timer < 0)
 			creature_change_action(CREATURE_ACTION_ROAM);
-		break;
-	default:
+	break; default:
 		UNREACHABLE("illegal creature state");
 	}
 }

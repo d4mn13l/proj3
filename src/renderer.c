@@ -119,14 +119,15 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 			// fprintf(g_log_file, "sprite->pos = " VEC3_FMT ", r = " VEC3_FMT "\n", VEC3_SPLIT(sprite->pos), VEC3_SPLIT(r));
 			vec3_t to_sprite = vec3_sub(sprite->pos, i);
 			float sprite_centre_distance = vec2_length(to_sprite);
-			float t = vec3_dot_product(r, to_sprite);
+			float t = vec2_dot_product(r, to_sprite);
 				// / vec3_dot_product(r, r);
 				// |r| = 1 so r.r = 1
 			if (t < 0) continue;
 			// 	// sprite is in opposite ray direction
 			// 	// ie behind the camera
 
-			float angle = vec2_angle(to_sprite, r);
+			float angle = acosf(t / sprite_centre_distance);
+			// see vec2_angle and |r| = 1
 
 			float sprite_centre_intersection_distance =
 				tan(angle) * sprite_centre_distance;
@@ -192,20 +193,18 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 	// TODO are the textures now flipped?
 	if (res.hit_cell_tex != CELL_TEX_EMPTY) {
 		switch (res.wall_orientation) {
-		case DIR_X:
+		break; case DIR_X:
 			res.tex_pos_x = (TEX_DIMENSIONS - 1) -
 				(u8) ((res.pos.x - (s8) res.pos.x)
 					* (float) TEX_DIMENSIONS);
 			if (r.y < 0) res.tex_pos_x = (TEX_DIMENSIONS - 1)
 				        - res.tex_pos_x;
-			break;
-		case DIR_Y:
+		break; case DIR_Y:
 			res.tex_pos_x = (TEX_DIMENSIONS - 1) -
 				(u8) ((res.pos.y - (s8) res.pos.y)
 					* (float) TEX_DIMENSIONS);
 			if (r.x > 0) res.tex_pos_x = (TEX_DIMENSIONS - 1)
 			        	- res.tex_pos_x;
-			break;
 		};
 	}
 
@@ -515,7 +514,6 @@ void tex_atlas_free(tex_atlas_t *ta) {
 
 
 void render_frame_begin() {
-	gfxFlushBuffers();
 	gfxSwapBuffers();
 	gspWaitForVBlank();
 }
@@ -537,7 +535,6 @@ void render_top_screen() {
 
 	float ratio = fminf(1, distance / BLINK_MAX_DISTANCE);
 	// ratio *= ratio;
-	// ratio = 1;
 	
 	render(&fb, &g_game.map, g_game.player.pos.x, g_game.player.pos.y, fov, 
 		// g_game.player.rotation, &g_game.ta, shade_dark, (void *) &dim_factor,
@@ -546,7 +543,7 @@ void render_top_screen() {
 }
 
 void render_frame_end() {
-	
+	gfxFlushBuffers();
 }
 
 // dont think ill need this but keep it just in case

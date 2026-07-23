@@ -23,11 +23,12 @@ enum {
 	GAME_STATE_JUMPSCARE,
 	GAME_STATE_CUTSCENE,
 		// expects cutscene_f in state_args
+	GAME_STATE_CREDITS,
 };
 
 
 enum {
-	GAME_REJECTED_BY_AI = 1,
+	GAME_MINE_UNLOCKED = 1,
 	GAME_ESCAPE_PODS_UNLOCKED = 2,
 };
 

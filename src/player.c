@@ -98,11 +98,7 @@ void player_pickup_item(u8 item) {
 
 void player_use_held_item() {
 	switch (g_game.player.held_item) {
-	case ITEM_CAPTIANS_HAND:
-	case ITEM_VALUABLE_CORPORATE_PROPERTY:
-		player_think("i cant use that", 2.0f, false);
-		break;
-	case ITEM_MINE:
+	break; case ITEM_MINE:
 		if (map_add_sprite(&g_game.map, g_game.player.pos.x,
 				g_game.player.pos.y, SPRITE_TEX_MINE)) {
 			player_think("cant put it here (dont ask why)", 3.0f, false);
@@ -113,7 +109,8 @@ void player_use_held_item() {
 		g_game.player.items[ITEM_MINE]--;
 		if (g_game.player.items[ITEM_MINE] == 0)
 			player_cycle_held_item();
-		break;
+	break; default:
+		player_think("i cant use that", 2.0f, false);
 	};
 }
 
