@@ -14,8 +14,7 @@
 
 
 void player_init(map_t *map) {
-	g_game.player.pos = (vec3_t) {map->player_start_x + CAMERA_HEIGHT,
-		map->player_start_y + 0.5, 0.5};
+	g_game.player.pos = map->player_start_pos;
 	g_game.player.rotation = 0;
 	memset(&g_game.player.items, 0, sizeof(g_game.player.items));
 	g_game.player.held_item = ITEM_COUNT;
@@ -30,8 +29,11 @@ void player_tick() {
 	player_handle_input();
 	if (g_game.player.thinking != NULL) {
 		g_game.player.think_for -= g_delta;
-		if (g_game.player.think_for < 0)
+		if (g_game.player.think_for < 0) {
+			if (g_game.player.free_thought)
+				free(g_game.player.thinking);
 			g_game.player.thinking = NULL;
+		}
 	}
 }
 
@@ -98,14 +100,12 @@ void player_use_held_item() {
 	switch (g_game.player.held_item) {
 	case ITEM_CAPTIANS_HAND:
 	case ITEM_VALUABLE_CORPORATE_PROPERTY:
-		g_game.player.thinking = "i cant use that";
-		g_game.player.think_for = 2.0f;
+		player_think("i cant use that", 2.0f, false);
 		break;
 	case ITEM_MINE:
 		if (map_add_sprite(&g_game.map, g_game.player.pos.x,
 				g_game.player.pos.y, SPRITE_TEX_MINE)) {
-			g_game.player.thinking = "cant put it here (dont ask)";
-			g_game.player.think_for = 3.0f;
+			player_think("cant put it here (dont ask why)", 3.0f, false);
 			return;
 		}
 		map_get_cell(&g_game.map, g_game.player.pos.x,
@@ -127,6 +127,15 @@ void player_cycle_held_item() {
 			(g_game.player.held_item + 1) % (ITEM_COUNT + 1);
 	} while (g_game.player.items[g_game.player.held_item] == 0 &&
 			g_game.player.held_item != start_item);
+}
+
+
+void player_think(char *new_thought, float think_for, bool free_thought) {
+	if (g_game.player.thinking && g_game.player.free_thought)
+		free(g_game.player.thinking);
+	g_game.player.thinking = new_thought;
+	g_game.player.think_for = think_for;
+	g_game.player.free_thought = free_thought;
 }
 
 

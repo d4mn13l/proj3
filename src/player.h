@@ -46,6 +46,8 @@ typedef struct {
 	char *thinking;
 	// displayed on the bottom screen for think_for s
 	float think_for;
+	bool free_thought;
+	// free thingking string when done thinking
 } player_t;
 
 
@@ -57,6 +59,8 @@ u8 player_get_item_count(u8 item);
 void player_pickup_item(u8 item);
 void player_use_held_item();
 void player_cycle_held_item();
+
+void player_think(char *though, float thing_for, bool free_thought);
 
 
 void player_handle_input();

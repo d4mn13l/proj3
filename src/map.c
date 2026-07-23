@@ -1,5 +1,6 @@
 #include "map.h"
 
+#include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,6 +35,8 @@ void map_load(map_t *map, FILE *f) {
 	
 	unsigned char c;
 	size_t i = 0;
+	bool found_player_start = false;
+	bool found_creature_start = false;
 
 	// parse map section
 	while ((c = fgetc(f)) != MAP_SECTION_SEPERATOR) {
@@ -52,21 +55,35 @@ void map_load(map_t *map, FILE *f) {
 			// creature path and empty
 			cell_init(&map->cells[i], CELL_TEX_EMPTY, c - 'a' + 1);
 		} else if (c == CELL_CHAR_PLAYER_START) {
+			ASSERT_ALWAYS_MSG(!found_player_start, "more than 1 player start in map file");
 			cell_init(&map->cells[i], CELL_TEX_EMPTY, 0);
-			map->player_start_x = i % map->w;
-			map->player_start_y = i / map->w;
+			map->player_start_pos = (vec3_t) {(i % map->w) + 0.5,
+				((int) (i / map->w)) + 0.5, 0.5};
+			found_player_start = true;
+		} else if (c == CELL_CHAR_CREATURE_START) {
+			ASSERT_ALWAYS_MSG(!found_creature_start, "more than 1 creature start in map file");
+			cell_init(&map->cells[i], CELL_TEX_EMPTY, 'c');
+			map->creature_start_pos = (vec3_t) {(i % map->w) + 0.5,
+				((int) (i / map->w)) + 0.5, 0.5};
+			found_creature_start = true;
 		} else if ('A' <= c && c <= 'Z') {
 			// creature path and vent
 			cell_init(&map->cells[i], CELL_TEX_VENT, c - 'A' + 1);
 		} else if ('0' <= c && c <= '9' ){
-			cell_init(&map->cells[i], c - '0', 0);
+			ASSERT_ALWAYS_MSG(c != 's', "s is an invalid roam path specifiers");
+			cell_init(&map->cells[i], c - '0', c + 1);
 		} else {
 			cell_init(&map->cells[i], CELL_TEX_DEFAULT, 0);
 		}
 
 		i++;
 	}
-	ASSERT_MSG(i == map->w * map->h, "expected more map, found EOF/]");
+
+	ASSERT_ALWAYS_MSG(found_player_start, "no player start in map file");
+	if (!found_creature_start) {
+		map->creature_start_pos = (vec3_t) {69420, 69420, 0.5};
+	}
+	ASSERT_ALWAYS_MSG(i == map->w * map->h, "expected more map, found EOF/]");
 
 	// cell enter action section
 	while (true) {
@@ -235,6 +252,11 @@ bool is_same_cell(vec3_t c1, vec3_t c2) {
 }
 
 
+vec3_t center_in_cell(vec3_t v) {
+	return (vec3_t) {floorf(v.x) + 0.5, floorf(v.y) + 0.5, 0.5};
+}
+
+
 sprite_t *map_get_interactable(map_t *map, size_t cx, size_t cy) {
 	cell_t *cell = map_get_cell(map, cx, cy);
 	for (size_t i = 0; i < MAX_SPRITES_PER_CELL; i++) {
@@ -256,30 +278,48 @@ void map_print_debug_info(map_t *map) {
 	}
 	
 	printf("Map dimensions: "SIZE_T_FORMAT" x "SIZE_T_FORMAT"\n" \
-		"Start point: ("SIZE_T_FORMAT", "SIZE_T_FORMAT")\n" \
+		"Start point: (%d, %d)\n" \
 		"Total wall cells: %u\n",
-		map->w, map->h, map->player_start_x, map->player_start_y, wall_count);
+		map->w, map->h, (int) map->player_start_pos.x, (int) map->player_start_pos.y, wall_count);
 }
 
 
-void map_render_minimap(map_t *map, char *file_name) {
-	FILE *f = fopen(file_name, "w");
-	ASSERT(f != NULL);
+void map_render_minimap(map_t *map, image_t *img, int scale) {
+	ASSERT_ALWAYS(ppm_image_is_in_bounds(img, map->w * scale - 1, map->h * scale - 1));
 
-	ppm_write_header(f, map->w, map->h);
-
-	size_t cell_count = map->w * map->h;
-	size_t player_start_i = map->player_start_y * map->w + map->player_start_x;
-
-	for (size_t i = 0; i < cell_count; i++) {
-		if (i == player_start_i) {
-			ppm_write_colour(f, COLOUR_GREEN);
-		} else if (map->cells[i].tex == CELL_TEX_EMPTY) {
-			ppm_write_colour(f, COLOUR_WHITE);
-		} else {
-			ppm_write_colour(f, COLOUR_BLACK);
+	for (size_t y = 0; y < img->h; y++) {
+		for (size_t x = 0; x < img->w; x++) {
+			colour_t colour;
+			if ((int) g_game.player.pos.x == x
+					&& (int) g_game.player.pos.y == y)
+				colour = COLOUR_GREEN;
+			else if ((int) g_game.creature.pos.x == x
+					&& (int) g_game.creature.pos.y == y)
+				colour = COLOUR_RED;
+			else if (map_get_cell(map, x, y)->tex == CELL_TEX_EMPTY)
+				colour = COLOUR_WHITE;
+			else
+				colour = COLOUR_BLACK;
+			ppm_image_fill_rectangle(img, x * scale, y * scale,
+				scale, scale, colour);
 		}
 	}
+}
 
-	fclose(f);
+void map_print_minimap(map_t *map, FILE *f) {
+	for (size_t y = 0; y < map->h; y++) {
+		for (size_t x = 0; x < map->w; x++) {
+			if ((int) g_game.player.pos.x == x
+					&& (int) g_game.player.pos.y == y)
+				putc('s', f);
+			else if ((int) g_game.creature.pos.x == x
+					&& (int) g_game.creature.pos.y == y)
+				putc('C', f);
+			else if (map_get_cell(map, x, y)->tex == CELL_TEX_EMPTY)
+				putc(' ', f);
+			else
+				putc('x', f);
+		}
+		putc('\n', f);
+	}
 }

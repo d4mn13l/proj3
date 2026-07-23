@@ -147,6 +147,11 @@ void ppm_image_load(image_t *img, FILE *f) {
 }
 
 
+bool ppm_image_is_in_bounds(image_t *img, size_t x, size_t y) {
+	return x < img->w && y < img->h;
+}
+
+
 void ppm_image_set_pixel(image_t *img, size_t x, size_t y, colour_t to) {
 	ASSERT(x < img->w);
 	ASSERT(y < img->h);

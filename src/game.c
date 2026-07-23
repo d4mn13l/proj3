@@ -20,25 +20,30 @@
 
 
 
-void game_init() {
-	FILE *tex_f = fopen("romfs:/wall_textures.ppm", "r");
+void game_init(char *map_path) {
+	FILE *tex_f = fopen("romfs:/textures.ppm", "r");
 	ASSERT_ALWAYS(tex_f != NULL);
 	tex_atlas_load(&g_game.ta, tex_f);
 	fclose(tex_f);
 
+	game_load_map(map_path);
+	
+	player_init(&g_game.map);
+
+	creature_init(&g_game.map);
+
+	g_game.state = GAME_STATE_PLAYING;
+	g_game.state_args = NULL;
+}
+
+
+void game_load_map(char *map_path) {
 	// load map
-	FILE *map_file = fopen("romfs:/map.txt", "r");
+	FILE *map_file = fopen(map_path, "r");
 	ASSERT_ALWAYS(map_file != NULL);
 	map_load(&g_game.map, map_file);
 	fclose(map_file);
 	map_file = NULL;
-
-	player_init(&g_game.map);
-
-	creature_init(69420, 69420);
-
-	g_game.state = GAME_STATE_PLAYING;
-	g_game.state_args = NULL;
 }
 
 
@@ -50,7 +55,6 @@ void game_deinit() {
 
 void game_draw_bottom_screen() {
 	consoleClear();
-	printf("\x1b[5;1H%d", sizeof(sprite_t));
 	if (g_game.player.thinking != NULL)
 		printf("\x1b[1;1H(* %s *)", g_game.player.thinking);
 
@@ -59,7 +63,7 @@ void game_draw_bottom_screen() {
 			ITEM_NAMES[g_game.player.held_item],
 			g_game.player.items[g_game.player.held_item]);
 	
-	// printf("\x1b[27;1H frame time: %f", g_delta);
+	printf("\x1b[27;1H frame time: %f", g_delta);
 	// printf("\x1b[28;1H creature pos: %f, %f", g_game.creature.pos.x, g_game.creature.pos.y);
 	// printf("\x1b[24;1H creature chase target: %f, %f", g_game.creature.chase_target.x, g_game.creature.chase_target.y);
 	// printf("\x1b[26;1H player pos: %f, %f", g_game.player.pos.x, g_game.player.pos.y);
@@ -96,6 +100,8 @@ void game_draw_bottom_screen() {
 		else
 			printf("\x1b[3;1H(press Y to %s)", action);
 	}
+	printf("\x1b[4;1H");
+	map_print_minimap(&g_game.map, stdout);
 }
 
 
@@ -104,12 +110,11 @@ int game_tick_play() {
 	u32 keys_down = hidKeysDown();
 	if (keys_down & KEY_START) return EXIT_FAILURE;
 
-	game_draw_bottom_screen();
-
 	player_tick();
 	creature_tick();
 
 	render_frame_begin();
+	game_draw_bottom_screen();
 	render_top_screen();
 	render_frame_end();
 
@@ -173,6 +178,9 @@ void game_interact(sprite_t *sprite) {
 		break;
 	case INTERACTABLE_TYPE_DOOR_SWITCH:
 		{}
+		if (sprite->data[2]) {
+			// TODO
+		}
 		cell_t *door = map_get_cell(&g_game.map,
 			sprite->data[0], sprite->data[1]);
 		if (door->tex == CELL_TEX_EMPTY) {
@@ -211,6 +219,11 @@ int game_tick() {
 	}
 	g_delta = (float) (svcGetSystemTick() - tick_start) / (CPU_TICKS_PER_MSEC * 1000);
 	return res;
+}
+
+
+void game_win() {
+	// TODO implement
 }
 
 

@@ -32,3 +32,4 @@ __pycache__/
 
 *.smdh
 *.elf
+compile_commands.json

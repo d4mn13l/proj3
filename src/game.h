@@ -26,6 +26,12 @@ enum {
 };
 
 
+enum {
+	GAME_REJECTED_BY_AI = 1,
+	GAME_ESCAPE_PODS_UNLOCKED = 2,
+};
+
+
 typedef void (*cutscene_f)();
 
 
@@ -37,14 +43,19 @@ typedef struct {
 	int state;
 	void *state_args;
 	void (*state_change_callback)();
+	int flags;
 } game_t;
 
 
 
 // use g_game global from shared.h
-void game_init();
+void game_init(char *map_path);
 int game_tick();
 void game_deinit();
+
+void game_load_map(char *map_path);
+
+void game_win();
 
 void game_set_state(int state, void *state_args, void (*state_change_callback)());
 

@@ -50,7 +50,7 @@ CFLAGS	:=	-g -Wall -O2 -mword-relocations \
 			-ffunction-sections \
 			$(ARCH)
 
-CFLAGS	+=	$(INCLUDE) -D__3DS__ -DDEBUG
+CFLAGS	+=	$(INCLUDE) -D__3DS__ -DOPTIMIZE_DOUBLE_SCALE -DDEBUG
 
 CXXFLAGS	:= $(CFLAGS) -fno-rtti -fno-exceptions -std=gnu++11
 

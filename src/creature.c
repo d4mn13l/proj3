@@ -2,6 +2,7 @@
 
 #include <math.h>
 #include <stdio.h>
+#include <stdlib.h>
 #include <string.h>
 
 #include "map.h"
@@ -12,21 +13,27 @@
 
 
 
-void creature_init(float x, float y) {
-	g_game.creature.pos = (vec3_t) {x, y, CAMERA_HEIGHT};
+void creature_init(map_t *map) {
+	g_game.creature.pos = map->creature_start_pos;
 	g_game.creature.los_player = false;
-	g_game.creature.action = CREATURE_ACTION_ROAM;
 
 	g_game.creature.sprite.pos = g_game.creature.pos;
 	g_game.creature.sprite.interactable_type = INTERACTABLE_TYPE_NONE;
 	g_game.creature.sprite.width = 0.5;
 	g_game.creature.sprite.tex = 7 + 1 * g_game.ta.nx;
+	g_game.creature.current_roam_path = 'c';
 	// creature tex is at (7/1)
 	memset(&g_game.creature.sprite.data, 0,
 		sizeof(g_game.creature.sprite.data));
-	if (map_is_in_bounds(&g_game.map, x, y))
-		map_get_cell(&g_game.map, x, y)->sprites[0]
+	if (map_is_in_bounds(&g_game.map, map->creature_start_pos.x,
+	        	map->creature_start_pos.y))
+		map_get_cell(&g_game.map, map->creature_start_pos.x,
+		        	map->creature_start_pos.y)->sprites[0]
 			= g_game.creature.sprite;
+	// beautiful indentation
+
+	// creature_change_action(CREATURE_ACTION_ROAM);
+	creature_change_action(CREATURE_ACTION_WAIT);
 }
 
 
@@ -49,21 +56,22 @@ bool creature_has_los(vec3_t target) {
 void creature_update_los_player() {
 	g_game.creature.los_player = creature_has_los(g_game.player.pos);
 	if (g_game.creature.los_player) {
-		creature_update_chase_target(g_game.player.pos);
+		creature_update_move_target(g_game.player.pos);
 	}
 }
 
 
-void creature_update_chase_target(vec3_t to) {
-	// creature->chase_target =
-		// (vec3_t) {floorf(to.x) + 0.5, floorf(to.y) + 0.5, 0.5};
-	g_game.creature.chase_target = (vec3_t) {to.x, to.y, 0.5};
+void creature_update_move_target(vec3_t to) {
+	fprintf(g_log_file, "updating move target to %f %f\n", to.x, to.y);
+	g_game.creature.move_target = (vec3_t) {to.x, to.y, 0.5};
 }
 
 
 u8 creature_get_path_options(vec3_t out[4],
 		bool include_last_cell, bool include_vents) {
 	// check all orthogonally adjacent cells to the creature
+	// puts centered absolute cell coords in out and returns how many path
+	// options were found
 	size_t cx = g_game.creature.pos.x;
 	size_t cy = g_game.creature.pos.y;
 	size_t lcx = g_game.creature.last_cell.x;
@@ -79,7 +87,7 @@ u8 creature_get_path_options(vec3_t out[4],
 			(include_vents && tex == CELL_TEX_VENT);
 		bool pos_valid = include_last_cell || cx + 1 != lcx || cy != lcy;
 		if (tex_valid && pos_valid) {
-			out[dir_count] = (vec3_t) {cx + 1, cy, 0.5};
+			out[dir_count] = (vec3_t) {cx + 1.5, cy + 0.5, 0.5};
 			dir_count++;
 		}
 	}
@@ -89,7 +97,7 @@ u8 creature_get_path_options(vec3_t out[4],
 			(include_vents && tex == CELL_TEX_VENT);
 		bool pos_valid = include_last_cell || cx != lcx || cy + 1 != lcy;
 		if (tex_valid && pos_valid) {
-			out[dir_count] = (vec3_t) {cx, cy + 1, 0.5};
+			out[dir_count] = (vec3_t) {cx + 0.5, cy + 1.5, 0.5};
 			dir_count++;
 		}
 	}
@@ -99,7 +107,7 @@ u8 creature_get_path_options(vec3_t out[4],
 			(include_vents && tex == CELL_TEX_VENT);
 		bool pos_valid = include_last_cell || cx - 1 != lcx || cy != lcy;
 		if (tex_valid && pos_valid) {
-			out[dir_count] = (vec3_t) {cx - 1, cy, 0.5};
+			out[dir_count] = (vec3_t) {cx - 0.5, cy + 0.5, 0.5};
 			dir_count++;
 		}
 	}
@@ -109,7 +117,7 @@ u8 creature_get_path_options(vec3_t out[4],
 			(include_vents && tex == CELL_TEX_VENT);
 		bool pos_valid = include_last_cell || cx != lcx || cy - 1 != lcy;
 		if (tex_valid && pos_valid) {
-			out[dir_count] = (vec3_t) {cx, cy - 1, 0.5};
+			out[dir_count] = (vec3_t) {cx + 0.5, cy - 0.5, 0.5};
 			dir_count++;
 		}
 	}
@@ -121,8 +129,8 @@ u8 creature_get_path_options(vec3_t out[4],
 
 void creature_tick_chase() {
 	// check if chase target hasnt been reached
-	if (!vec3_equal_approx(g_game.creature.pos, g_game.creature.chase_target)) {
-		if (!creature_has_los(g_game.creature.chase_target)) {
+	if (!vec3_equal_approx(g_game.creature.pos, g_game.creature.move_target)) {
+		if (!creature_has_los(g_game.creature.move_target)) {
 			fputs("no los -> roam\n", g_log_file);
 			// can happen when ie a door is closed
 			// important to check that pos != chase_target,
@@ -132,23 +140,17 @@ void creature_tick_chase() {
 			return;
 		}
 
-		// move towards lsp
-		// slow down proportionally to the distance to chase_target
-		// when in the same cell to make sure that it is not
-		// overshot 
+		// move towards move_target
+		// when in the same cell, snap to it to avoid overshooting
 		creature_update_los_player();
-		float speed = CREATURE_CHASE_SPEED * g_delta;
 		if ((int) g_game.creature.pos.x
-					== (int) g_game.creature.chase_target.x
+					== (int) g_game.creature.move_target.x
 				&& (int) g_game.creature.pos.y
-				== (int) g_game.creature.chase_target.y) {
-			speed = vec3_length(vec3_sub(g_game.creature.pos,
-			        g_game.creature.chase_target));
+				== (int) g_game.creature.move_target.y) {
+			creature_move_to(g_game.creature.move_target);
+		} else {
+			creature_move_towards_target(CREATURE_CHASE_SPEED);
 		}
-		vec3_t dir = vec3_normalised(
-			vec3_sub(g_game.creature.chase_target,
-				g_game.creature.pos));
-		creature_move(vec3_mul_scalar(speed, dir));
 		return;
 	}
 		
@@ -174,10 +176,79 @@ void creature_tick_chase() {
 	}
 	
 	fprintf(g_log_file, "continuing chasing toward %f %f\n", paths[0].x, paths[0].y);
-	creature_update_chase_target(
+	creature_update_move_target(
 		(vec3_t) {paths[0].x + 0.5, paths[0].y + 0.5, 0.5});
 	
 }
+
+
+void creature_tick_roam() {
+	fflush(g_log_file);
+	// DEBUG
+	creature_update_los_player();
+	if (g_game.creature.los_player) {
+		creature_change_action(CREATURE_ACTION_CHASE);
+		return;
+	}
+
+	// for now ignore roam paths. instead, at every intersection, randomly
+	// choose a path, but choose the one towards the player with a higher
+	// probability
+	
+	if (!is_same_cell(g_game.creature.pos, g_game.creature.move_target)) {
+		creature_move_towards_target(CREATURE_ROAM_SPEED);
+		return;
+	}
+
+	creature_choose_roam_target();
+}
+
+
+void creature_choose_roam_target() {
+	// creature moved to target cell, so we have to select a new one
+	vec3_t paths[4];
+	size_t paths_count = creature_get_path_options(paths, false, true);
+	fprintf(g_log_file, "at %f %f got %d paths\n", g_game.creature.pos.x, g_game.creature.pos.y, paths_count);
+	if (paths_count == 0) {
+		g_game.creature.move_target = g_game.creature.last_cell;
+		fprintf(g_log_file, "cul-de-sac -> moving back\n");
+		return;
+	}
+
+	// first randomly determine whether the creature should go towards the
+	// player or pick a random path
+	if ((float) rand() / RAND_MAX < CREATURE_ROAM_CHOOSE_RANDOM_PATH_PROBABLILITY) {
+		creature_update_move_target(paths[rand() % paths_count]);
+		fprintf(g_log_file, "picked %f %f randomly\n", g_game.creature.move_target.x, g_game.creature.move_target.y);
+		return;
+	}
+
+	// now choose the direction for which |dir - normalised(line_to_player)|
+	// is the smallest
+	// we can use vec3_length_squared instead of vec3_length
+	// this should determine which direction faces the closest to the player
+
+	float smallest_distance = HUGE_VALF;
+	int smallest_index = -1;
+	vec3_t player_direction = vec3_normalised(
+		vec3_sub(g_game.player.pos, g_game.creature.pos));
+	vec3_t centered_creature_pos = center_in_cell(g_game.creature.pos);
+	for (size_t i = 0; i < paths_count; i++) {
+		float d = vec3_length_squared(vec3_sub(
+			vec3_sub(paths[i], centered_creature_pos),
+				// direction, already normalised
+			player_direction));
+		if (d <  smallest_distance) {
+			smallest_distance = d;
+			smallest_index = i;
+		}
+	}
+	ASSERT(smallest_index != -1);
+	fprintf(g_log_file, "picked %d %d (closest to player\n)", (int) g_game.creature.move_target.x, (int) g_game.creature.move_target.y);
+
+	creature_update_move_target(paths[smallest_index]);
+}
+
 
 
 void creature_move(vec3_t by) {
@@ -237,12 +308,23 @@ void creature_move_to(vec3_t to) {
 }
 
 
+void creature_move_towards_target(float speed) {
+	vec3_t dir = vec3_normalised(vec3_sub(g_game.creature.move_target,
+		g_game.creature.pos));
+	creature_move(vec3_mul_scalar(speed * g_delta, dir));
+}
+
+
 void creature_change_action(int to) {
 	fprintf(g_log_file, "changing creature action to %d\n", to);
 	g_game.creature.action = to;
 	switch (to) {
 	case CREATURE_ACTION_STUNNED:
 		g_game.creature.stunned_timer = CREATURE_STUNNED_TIME;
+		break;
+	case CREATURE_ACTION_ROAM:
+		creature_choose_roam_target();
+		break;
 	}
 }
 
@@ -250,13 +332,7 @@ void creature_change_action(int to) {
 void creature_tick() {
 	switch (g_game.creature.action) {
 	case CREATURE_ACTION_ROAM:
-		creature_update_los_player();
-		if (g_game.creature.los_player) {
-			g_game.creature.action = CREATURE_ACTION_CHASE;
-			break;
-		}
-
-		// TODO
+		creature_tick_roam();
 		break;
 
 	case CREATURE_ACTION_CHASE:

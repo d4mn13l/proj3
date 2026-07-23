@@ -105,9 +105,9 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 		// it might not actually hit bc it is transparent where it
 		// was hit but this will be determined in draw
 
-		for (size_t pi = 0; pi < MAX_SPRITES_PER_CELL; pi++) {
-			sprite_t *sprite = &hit_cell->sprites[pi];
-			if (sprite == NULL) break;
+		for (size_t si = 0; si < MAX_SPRITES_PER_CELL; si++) {
+			sprite_t *sprite = &hit_cell->sprites[si];
+			if (sprite->tex == SPRITE_TEX_EMPTY) continue;
 			
 			// FIXME the hit props should be ordered by the distance
 			// to the camera, but they arent necessarily if there
@@ -116,45 +116,43 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 			// infront of them
 
 
-			vec3_t to_prop = vec3_sub(sprite->pos, i);
-			float t = vec3_dot_product(r, to_prop);
+			// fprintf(g_log_file, "sprite->pos = " VEC3_FMT ", r = " VEC3_FMT "\n", VEC3_SPLIT(sprite->pos), VEC3_SPLIT(r));
+			vec3_t to_sprite = vec3_sub(sprite->pos, i);
+			float sprite_centre_distance = vec2_length(to_sprite);
+			float t = vec3_dot_product(r, to_sprite);
 				// / vec3_dot_product(r, r);
 				// |r| = 1 so r.r = 1
 			if (t < 0) continue;
-				// prop is in opposite ray direction
-				// ie behind the camera
+			// 	// sprite is in opposite ray direction
+			// 	// ie behind the camera
 
-			vec3_t b = vec3_add(i, vec3_mul_scalar(t, r));
-				// closest point on the ray to the prop
-				// is this gram-schmidt?
+			float angle = vec2_angle(to_sprite, r);
 
-			if ((int) b.x != (int) sprite->pos.x
-				|| (int) b.y != (int) sprite->pos.y) continue;
-			
-			float prop_ray_distance =
-				vec3_length(vec3_sub(sprite->pos, b));
-			// distance to the closest point on the ray
+			float sprite_centre_intersection_distance =
+				tan(angle) * sprite_centre_distance;
 
-			int side = sign(r.x * to_prop.y - to_prop.x * r.y);
+			int side = signf(r.x * to_sprite.y - to_sprite.x * r.y);
 			// whether the hit happened on the right side or the
 			// left side of the ray
 			// sign of the determinant of (r|to_prop)
-			// so 13221873
+			// from stack overflow question 13221873
 
-			if (prop_ray_distance > sprite->width) continue;
+			if (sprite_centre_intersection_distance > sprite->width) continue;
 				// ray doesnt hit
 
 			u8 tex_pos_x = (1 - sprite->width +
-					prop_ray_distance * side)
+					sprite_centre_intersection_distance * side)
 				* (float) TEX_DIMENSIONS;
 
-			for (size_t pj = 0; pj < MAX_SPRITES_PER_CELL; pj++) {
-				if (res.hit_sprites[pj].sprite != NULL) continue;
+			for (size_t sj = 0; sj < MAX_SPRITES_PER_CELL; sj++) {
+				if (res.hit_sprites[sj].sprite != NULL) continue;
 				
-				res.hit_sprites[pj].sprite = sprite;
-				res.hit_sprites[pj].pos = b;
-				res.hit_sprites[pj].tex_pos_x = tex_pos_x;
-				res.hit_sprites[pj].distance = t;
+				float hit_distance = sprite_centre_distance / cos(angle);
+				
+				res.hit_sprites[sj].sprite = sprite;
+				res.hit_sprites[sj].pos = vec3_add(i, vec3_mul_scalar(hit_distance, r));
+				res.hit_sprites[sj].tex_pos_x = tex_pos_x;
+				res.hit_sprites[sj].distance = hit_distance;
 				break;
 				
 			}
@@ -332,17 +330,24 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r) {
 			// change
 			draw_pixel(img, tex_atlas, &rc_res, shade,
 				shade_params, x, y);
-                        if (scale != 1)
-                        	ppm_image_fill_rectangle(img, x, y, scale,
-                        		scale, *ppm_image_get_pixel(img, x, y));
+			#ifdef OPTIMIZE_DOUBLE_SCALE
+			colour_t *colour = ppm_image_get_pixel(img, x, y);
+			ppm_image_set_pixel(img, x + 1, y, *colour);
+			ppm_image_set_pixel(img, x, y + 1, *colour);
+			ppm_image_set_pixel(img, x + 1, y + 1, *colour);
+			#else
+			if (scale != 1)
+				ppm_image_fill_rectangle(img, x, y, scale,
+					scale, *ppm_image_get_pixel(img, x, y));
+			#endif
                 }
 	}
 }
 
 
 void draw_pixel(image_t *img, tex_atlas_t *ta, ray_cast_result_t *rc_res,
-	shading_function_t shade, void *shade_params, size_t px, size_t py) {
-
+		shading_function_t shade, void *shade_params, size_t px
+		, size_t py) {
 	for (size_t i = 0; i < MAX_SPRITES_PER_CELL; i++) {
 		// we assume that the props are ordered by distance from the
 		// camera, which is not necessarily the case when there are

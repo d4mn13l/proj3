@@ -51,6 +51,8 @@ image_t **ppm_image_split(image_t *src, size_t nx, size_t ny);
 // ---------
 // where the numbers are the indeces of into
 
+bool ppm_image_is_in_bounds(image_t *img, size_t x, size_t y);
+
 void ppm_write_header(FILE *f, size_t w, size_t h);
 void ppm_write_colour(FILE *f, colour_t c);
 

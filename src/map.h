@@ -6,6 +6,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+#include "ppm.h"
 #include "maths.h"
 
 
@@ -14,6 +15,8 @@
 
 #define CELL_CHAR_EMPTY ' '
 #define CELL_CHAR_PLAYER_START 'S'
+#define CELL_CHAR_CREATURE_START 'C'
+// this will be put onto roam path c
 
 #define MAP_SECTION_SEPERATOR ']'
 #define SPRITE_DATA_COUNT 3
@@ -37,6 +40,7 @@ enum {
 };
 
 enum {
+	SPRITE_TEX_EMPTY = 0,
 	SPRITE_TEX_MINE = 26
 };
 
@@ -77,7 +81,7 @@ typedef struct {
 // interactable: type x y tex_x tex_y data[0] ... data[SPRITE_DATA_COUNT]
 
 
-#define SPRITE_EMPTY (sprite_t) { (vec3_t) {0.0f, 0.0f, 0.0f}, 0.0f, 0, 0, {0}}
+#define SPRITE_EMPTY (sprite_t) { (vec3_t) {0.0f, 0.0f, 0.0f}, 0.0f, SPRITE_TEX_EMPTY, 0, {0}}
 
 
 typedef void(*cell_enter_action_f)(void *cell, vec3_t cell_pos);
@@ -98,12 +102,20 @@ typedef struct {
 	// 0 -> not on any path
 	cell_enter_action_f cell_enter_action;
 } cell_t;
+// roam path encoding in map file:
+// each roam path is specified by a letter {a, ..., z} \ {s} (bc S is used for
+// player start pos)
+// lowercase and uppercase letter correspond to the same roam path (ie 'e' and 
+// 'E'), but there is a difference:
+// if the letter is lowercase, the cell is empty, if it is uppercase the cell
+// is a vent (so the creature can go through it but the player cant)
 
 
 
 typedef struct {
 	size_t w, h;
-	size_t player_start_x, player_start_y;
+	vec3_t player_start_pos;
+	vec3_t creature_start_pos;
 	cell_t *cells;
 } map_t;
 
@@ -125,13 +137,16 @@ sprite_t *map_get_interactable(map_t *map, size_t cx, size_t cy);
 
 bool map_is_in_bounds(map_t *map, int x, int y);
 cell_t *map_get_cell(map_t *map, size_t x, size_t y);
+
 bool is_same_cell(vec3_t c1, vec3_t c2);
+vec3_t center_in_cell(vec3_t v);
 
 void map_player_entered_cell(map_t *map, vec3_t at);
 void map_creature_entered_cell(map_t *map, vec3_t at);
 
 void map_print_debug_info(map_t *map);
-void map_render_minimap(map_t *map, char *file_name);
+void map_render_minimap(map_t *map, image_t *img, int scale);
+void map_print_minimap(map_t *map, FILE *f);
 
 
 #endif
