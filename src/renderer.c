@@ -514,7 +514,6 @@ void tex_atlas_free(tex_atlas_t *ta) {
 
 
 void render_frame_begin() {
-	gfxSwapBuffers();
 	gspWaitForVBlank();
 }
 
@@ -552,6 +551,7 @@ void render_image(image_t *img) {
 
 void render_frame_end() {
 	gfxFlushBuffers();
+	gfxSwapBuffers();
 }
 
 // dont think ill need this but keep it just in case

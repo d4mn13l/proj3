@@ -6,6 +6,7 @@
 #include <string.h>
 #include <math.h>
 
+#include "3ds/console.h"
 #include "3ds/gfx.h"
 #include "3ds/os.h"
 #include "3ds/services/gspgpu.h"
@@ -31,6 +32,8 @@ void game_init(char *map_path) {
 	fclose(tex_f);
 
 	game_load_map(map_path);
+
+	g_game.flags = 0;
 	
 	player_init(&g_game.map);
 
@@ -38,7 +41,7 @@ void game_init(char *map_path) {
 
 	// g_game.state = GAME_STATE_PLAYING;
 	// g_game.state_args = NULL;
-	game_set_state(GAME_STATE_TEXT, text[TEXT_INTRO], NULL);
+	game_set_state(GAME_STATE_TEXT, (void *) text[TEXT_INTRO], NULL);
 }
 
 
@@ -68,7 +71,7 @@ void game_draw_bottom_screen() {
 			ITEM_NAMES[g_game.player.held_item],
 			g_game.player.items[g_game.player.held_item]);
 	
-	// printf("\x1b[27;1H frame time: %f", g_delta);
+	// printf("\x1b[27;1H frame time: %.3fms", g_delta);
 	// printf("\x1b[28;1H creature pos: %f, %f", g_game.creature.pos.x, g_game.creature.pos.y);
 	// printf("\x1b[24;1H creature chase target: %f, %f", g_game.creature.chase_target.x, g_game.creature.chase_target.y);
 	// printf("\x1b[26;1H player pos: %f, %f", g_game.player.pos.x, g_game.player.pos.y);
@@ -174,6 +177,7 @@ int game_tick_cutscene() {
 
 	render_frame_begin();
 	render_top_screen();
+	render_frame_end();
 
 	return EXIT_SUCCESS;
 }
@@ -181,6 +185,7 @@ int game_tick_cutscene() {
 
 int game_tick_credits() {
 	render_frame_begin();
+	consoleClear();
 	puts("thanks for \"playing\"");
 	puts("press start to exit");
 	render_frame_end();

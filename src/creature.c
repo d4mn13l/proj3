@@ -34,7 +34,6 @@ void creature_init(map_t *map) {
 	// beautiful indentation
 
 	creature_change_action(CREATURE_ACTION_ROAM);
-	// creature_change_action(CREATURE_ACTION_WAIT);
 }
 
 
