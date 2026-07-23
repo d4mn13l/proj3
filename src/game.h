@@ -21,6 +21,8 @@ enum {
 	GAME_STATE_TEXT,
 		// expects pointer to next char to print in state_args
 	GAME_STATE_JUMPSCARE,
+		// jumpscare picture will be put into state_args and freed
+		// when switching away
 	GAME_STATE_CUTSCENE,
 		// expects cutscene_f in state_args
 	GAME_STATE_CREDITS,

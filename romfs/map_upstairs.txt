@@ -1,37 +1,40 @@
 24 19
-  ######                
+  ###67#                
   #    #######          
   #    # #   ###########
   #    #     #         #
 ##### ####     ####### #
-#        #dor# ####### #
-######## #m  #C####### #
-  #    # ##9## ####### #
-  #    # ##### ##    # #
-  #work#       ##esca# #
-  #      ##### ##pe p# #
-  # S  # ##### ##ods # #
+#S       #dor# ####### #
+######## #m  # 6#####7 6
+  #    # ##9## 7###### 6
+  #    # ##### 6#    # 7
+  #work#   5   ##esca# #
+  3      ##### #4pe p# #
+  #    # ##### ##ods # #
   #    # ##### ##      #
   ###### #####8#########
-     #          # mine #
-     # bridge   # ######
-     #       ## # #     
-     #       ##   #     
-     ##############     
+     #          #       
+     # bridge   #       
+     5          3       
+     #          #       
+     #######53###       
 ]
 22 11 arm_upstairs_chase
 ]
  5.5 11.5 1 1 laptop table in work room
+10.5 15.5 0 1 table in bridge
+12.5 15.5 2 1 other table in bridge
 10.5  2.5 8 1 bed in dorm
 12.5  2.5 8 1 bed in dorm
 ]
-1  4.5  8.5 2 1  0  0 0 lore table in work room
-3 15.8 14.5 4 1 14 13 0 switch for door to bridge
-1 11.5  6.5 5 1  1  0 0 lore: dead crewmate
-2  8.5  2.5 9 1  1  0 0 drawer in dorm TODO put item in
-4 10.5 17.5 3 1  0  0 0 main console on the bridge
-2 19.5 10.5 5 1  0  0 0 dead captians hand
-4 17.5  8.5 9 1  1  9 9 escape pod 1 TODO texture
-4 18.5  8.5 9 1  1  9 9 escape pod 2
-4 19.5  8.5 9 1  1  9 9 escape pod 3
-4 20.5  8.5 9 1  1  9 9 escape pod 4
+4  4.5  1.5 12 1  1  0 0 mine elevator
+1  4.5  8.5  2 1  1  0 0 lore table in work room
+3 15.8 14.5  4 1 14 13 0 switch for door to bridge
+1 11.5  6.5  5 1  2  0 0 lore: dead crewmate
+2  8.5  2.5  9 1  1  0 0 drawer in dorm
+4 10.5 17.5  3 1  0  0 0 main console on the bridge
+2 19.5 10.5  5 1  0  0 0 dead captians hand
+4 17.5  8.5 11 1  2  9 9 escape pod 1
+4 18.5  8.5 11 1  2  9 9 escape pod 2
+4 19.5  8.5 11 1  2  9 9 escape pod 3
+4 20.5  8.5 11 1  2  9 9 escape pod 4

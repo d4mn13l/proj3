@@ -20,7 +20,6 @@ void player_init(map_t *map) {
 	g_game.player.held_item = ITEM_COUNT;
 	g_game.player.thinking = NULL;
 	g_game.player.think_for = 0.0f;
-	g_game.player.items[ITEM_MINE] = 2;
 }
 
 

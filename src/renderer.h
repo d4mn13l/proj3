@@ -98,6 +98,7 @@ ray_cast_result_t cast_ray(map_t *map, vec3_t i, vec3_t r);
 
 void render_frame_begin();
 void render_top_screen();
+void render_image(image_t *img);
 void render_frame_end();
 
 

@@ -5,6 +5,7 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "game.h"
 #include "map.h"
 #include "maths.h"
 #include "renderer.h"
@@ -32,8 +33,8 @@ void creature_init(map_t *map) {
 			= g_game.creature.sprite;
 	// beautiful indentation
 
-	// creature_change_action(CREATURE_ACTION_ROAM);
-	creature_change_action(CREATURE_ACTION_WAIT);
+	creature_change_action(CREATURE_ACTION_ROAM);
+	// creature_change_action(CREATURE_ACTION_WAIT);
 }
 
 
@@ -328,6 +329,10 @@ void creature_change_action(int to) {
 
 
 void creature_tick() {
+	if (is_same_cell(g_game.creature.pos, g_game.player.pos)) {
+		game_set_state(GAME_STATE_JUMPSCARE, NULL, NULL);
+		return;
+	}
 	switch (g_game.creature.action) {
 	break; case CREATURE_ACTION_ROAM:
 		creature_tick_roam();

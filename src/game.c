@@ -8,6 +8,7 @@
 
 #include "3ds/gfx.h"
 #include "3ds/os.h"
+#include "3ds/services/gspgpu.h"
 #include "3ds/services/hid.h"
 #include "3ds/svc.h"
 #include "interactables.h"
@@ -35,8 +36,9 @@ void game_init(char *map_path) {
 
 	creature_init(&g_game.map);
 
-	g_game.state = GAME_STATE_PLAYING;
-	g_game.state_args = NULL;
+	// g_game.state = GAME_STATE_PLAYING;
+	// g_game.state_args = NULL;
+	game_set_state(GAME_STATE_TEXT, text[TEXT_INTRO], NULL);
 }
 
 
@@ -62,11 +64,11 @@ void game_draw_bottom_screen() {
 		printf("\x1b[1;1H(* %s *)", g_game.player.thinking);
 
 	if (g_game.player.held_item < ITEM_COUNT)
-		printf("\x1b[2;1H(press A to use %s (%hhu))",
+		printf("\x1b[3;1H(press A to use %s (%hhu))",
 			ITEM_NAMES[g_game.player.held_item],
 			g_game.player.items[g_game.player.held_item]);
 	
-	printf("\x1b[27;1H frame time: %f", g_delta);
+	// printf("\x1b[27;1H frame time: %f", g_delta);
 	// printf("\x1b[28;1H creature pos: %f, %f", g_game.creature.pos.x, g_game.creature.pos.y);
 	// printf("\x1b[24;1H creature chase target: %f, %f", g_game.creature.chase_target.x, g_game.creature.chase_target.y);
 	// printf("\x1b[26;1H player pos: %f, %f", g_game.player.pos.x, g_game.player.pos.y);
@@ -95,12 +97,12 @@ void game_draw_bottom_screen() {
 			action = "do something";
 		}
 		if (action2)
-			printf("\x1b[3;1H(press Y to %s %s)", action, action2);
+			printf("\x1b[4;1H(press Y to %s %s)", action, action2);
 		else
-			printf("\x1b[3;1H(press Y to %s)", action);
+			printf("\x1b[4;1H(press Y to %s)", action);
 	}
-	printf("\x1b[4;1H");
-	map_print_minimap(&g_game.map, stdout);
+	// printf("\x1b[5;1H");
+	// map_print_minimap(&g_game.map, stdout);
 }
 
 
@@ -113,8 +115,15 @@ int game_tick_play() {
 	creature_tick();
 
 	render_frame_begin();
-	game_draw_bottom_screen();
 	render_top_screen();
+	gspWaitForVBlank1();
+	// it is not documented what this function does but it prevents the
+	// text on the bottom screen from flickering on my 3ds (not in the
+	// emulator)
+	// there is also gspWaitForVBlank0 (and gspWaitForVBlank is just a macro
+	// for that), so i assume 0 stands for top screen and 1 for bottom
+	// screen
+	game_draw_bottom_screen();
 	render_frame_end();
 
 	return EXIT_SUCCESS;
@@ -139,14 +148,20 @@ int game_tick_text() {
 			game_set_state(GAME_STATE_PLAYING, NULL, NULL);
 	} else {
 		g_game.state_args = (char *)g_game.state_args + 1;
+		if (*(char *) g_game.state_args == '\0') {
+			puts("\n");
+			puts("(press Y to continue)");
+		}
 	}
-	
-	if (c != '\0' && keys_held & KEY_SKIP_TEXT) {
+
+	if (keys_held & KEY_SKIP_TEXT) {
 		puts((char *) g_game.state_args);
 		g_game.state_args = (char *) g_game.state_args +
 			strlen((char *) g_game.state_args);
-		puts("\n");
-		puts("(press Y to continue)");
+		if (c != '\0') {
+			puts("\n");
+			puts("(press Y to continue)");
+		}
 	}
 
 	return EXIT_SUCCESS;
@@ -176,6 +191,17 @@ int game_tick_credits() {
 }
 
 
+int game_tick_jumpscare() {
+	fprintf(g_log_file, "jumping");
+	fflush(g_log_file);
+	render_frame_begin();
+	render_image(g_game.state_args);
+	render_frame_end();
+	svcSleepThread(6900000000);
+	return EXIT_FAILURE;
+}
+
+
 void game_interact(sprite_t *sprite) {
 	switch (sprite->interactable_type){
 	break; case INTERACTABLE_TYPE_NONE:
@@ -200,6 +226,7 @@ void game_interact(sprite_t *sprite) {
 		player_pickup_item(sprite->data[0]);
 		sprite->interactable_type = INTERACTABLE_TYPE_NONE;
 	break; case INTERACTABLE_TYPE_CUSTOM:
+		fprintf(g_log_file, "calling i %d\n", sprite->data[0]);
 		CUSTOM_INTERACTABLES[sprite->data[0]](sprite->data);
 	break; default:
 		UNREACHABLE("invalid interactable type");
@@ -218,7 +245,9 @@ int game_tick() {
 		res = game_tick_cutscene();
 	break; case GAME_STATE_CREDITS:
 		res = game_tick_credits();
-	default:
+	break; case GAME_STATE_JUMPSCARE:
+		res = game_tick_jumpscare();
+	break; default:
 		UNREACHABLE("illegal game state value");
 	}
 	g_delta = (float) (svcGetSystemTick() - tick_start) / (CPU_TICKS_PER_MSEC * 1000);
@@ -237,7 +266,8 @@ void game_set_state(int state, void *state_args, void (*state_change_callback)()
 
 	// state exit stuff
 	switch (state) {
-		
+	break; case GAME_STATE_JUMPSCARE:
+		free(g_game.state_args);
 	}
 	g_game.state = state;
 	g_game.state_args = state_args;
@@ -246,5 +276,12 @@ void game_set_state(int state, void *state_args, void (*state_change_callback)()
 	switch (state) {
 	break; case GAME_STATE_TEXT:
 		consoleClear();
+	break; case GAME_STATE_JUMPSCARE:
+		{}
+		FILE *js_img_f = fopen("romfs:/jumpscare.ppm", "r");
+		ASSERT_ALWAYS(js_img_f != NULL);
+		image_t *jumpscare = malloc(sizeof(image_t));
+		ppm_image_load(jumpscare, js_img_f);
+		g_game.state_args = jumpscare;
 	}
 }

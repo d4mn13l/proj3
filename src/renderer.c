@@ -542,6 +542,14 @@ void render_top_screen() {
 		2);
 }
 
+
+void render_image(image_t *img) {
+	colour_t *fb = (colour_t *) gfxGetFramebuffer(GFX_TOP, GFX_LEFT, NULL, NULL);
+	memcpy(fb, img->pixels, GSP_SCREEN_WIDTH * GSP_SCREEN_HEIGHT_TOP
+			* sizeof(img->pixels[0]));
+}
+
+
 void render_frame_end() {
 	gfxFlushBuffers();
 }

@@ -2,7 +2,20 @@
 #define LORE_H
 
 
+
+enum {
+	TEXT_INTRO,
+	TEXT_WORK_ROOM_NOTE,
+	TEXT_DEAD_CREWMATE,
+	TEXT_MAIN_CONSOLE_ACCESS_DENIED,
+	TEXT_MAIN_CONSOLE_ACCESS_GRANTED,
+};
+
 static const char text[][1024] = {
+	// intro
+	"you are on a submarine research mission in the deep ocean. youre working on some samples when suddenly you hear cries and chaos from the deck below. quickly you rush downstairs only to "
+	"find everything silent again . . .",
+	
 	// hand written note in work room
 	"\x1b[3m(a hand-written note)\x1b[0m\n" // this is supposed to be cursive but its not supported apparently
 	"\x1b[1;4mProject 3 Press Release sketch\x1b[0m\n"
