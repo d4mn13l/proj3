@@ -38,4 +38,4 @@ this puts an interactable sprite with texture (tx, ty) at (x, y).
 it has interaction type type (see map.h for the different types) and [d0, d1, d2] as its data. 
 different interaction types use this data for different stuff, which is also explained in map.h. 
 
-again the rest of the line after these 4 numbers is ignored so you can put comments or whatever you want.
+again the rest of the line after these 8 numbers is ignored so you can put comments or whatever you want.
