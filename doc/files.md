@@ -2,50 +2,50 @@
 
 ## in src/
 
-- main
-
-- player
+- player:
   movement, items
 
-- creature
+- creature:
   creature "ai" (at least the parts that are finished) and movement
 
-- map
+- map:
   all things that are on the map, so:
   - walls
   - sprites
   - interactables (but not handling interactions with them)
   - reading the map file
 
-- game
+- game:
   everything that concerns multiple parts of the game, like:
   - tick
   - handling interactions
   - game state (playing, cutscene, text, ...)
 
-- ppm
+- ppm:
   all image-related stuff like reading a ppm file, setting pixels etc
 
-- shared
+- shared:
   global variables: delta, log file and game state struct
 
-- text
+- text:
   the long stuff that is printed when interacting with something
 
-- util
+- util:
   some util macros, mainly assert stuff
 
-- maths
+- maths:
   vector stuff and some other maths helpers
 
-- interactables
+- interactables:
   functions for interactables that dont fit into the standart categories
 
-- cell_enter_actions
+- cell_enter_actions:
   functions for cell_enter_actions (wow)
 
-- keymap
+- keymap:
   maps keys
+
+- main:
 
 ## romfs
 map files and textures
