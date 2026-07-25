@@ -270,9 +270,12 @@ void game_set_state(int state, void *state_args, void (*state_change_callback)()
 	if (g_game.state_change_callback) g_game.state_change_callback();
 
 	// state exit stuff
-	switch (state) {
+	switch (g_game.state) {
 	break; case GAME_STATE_JUMPSCARE:
 		free(g_game.state_args);
+		ppm_image_free(g_game.state_args);
+		free(g_game.state_args);
+		g_game.state_args = NULL;
 	}
 	g_game.state = state;
 	g_game.state_args = state_args;
