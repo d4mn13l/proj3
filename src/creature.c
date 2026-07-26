@@ -136,6 +136,8 @@ void creature_tick_chase() {
 			// important to check that pos != chase_target,
 			// otherwise the LOS checking failes r.z == 0 assert
 			// in cast_ray
+			// TODO continue chasing if there is just one path
+			// forwards
 			creature_change_action(CREATURE_ACTION_ROAM);
 			return;
 		}
@@ -344,7 +346,7 @@ void creature_tick() {
 	break; case CREATURE_ACTION_STUNNED:
 		g_game.creature.stunned_timer -= g_delta;
 		if (g_game.creature.stunned_timer < 0)
-			creature_change_action(CREATURE_ACTION_ROAM);
+			creature_change_action(CREATURE_ACTION_CHASE);
 	break; default:
 		UNREACHABLE("illegal creature state");
 	}

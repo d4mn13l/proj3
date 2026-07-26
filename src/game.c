@@ -186,7 +186,7 @@ int game_tick_cutscene() {
 int game_tick_credits() {
 	render_frame_begin();
 	consoleClear();
-	puts("thanks for \"playing\"");
+	puts("thanks for \"playing\" c:");
 	puts("press start to exit");
 	render_frame_end();
 
@@ -198,7 +198,6 @@ int game_tick_credits() {
 
 int game_tick_jumpscare() {
 	fprintf(g_log_file, "jumping");
-	fflush(g_log_file);
 	render_frame_begin();
 	render_image(g_game.state_args);
 	render_frame_end();
@@ -239,6 +238,7 @@ void game_interact(sprite_t *sprite) {
 }
 
 int game_tick() {
+	// fflush(g_log_file);
 	u64 tick_start = svcGetSystemTick();
 	int res;
 	switch (g_game.state) {
